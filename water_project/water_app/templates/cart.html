@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Shopping Cart - Superwater{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/cart.css' %}" />
+{% endblock %}
+
+{% block content %}
+<div class="cart-page">
+    <!-- Cart Header -->
+    <div class="cart-header-section">
+        <h1>
+            <i class="fas fa-shopping-cart"></i>
+            My Cart
+            <span class="cart-count-badge" id="cartCount">0</span>
+        </h1>
+        <a href="{% url 'shop' %}" class="continue-shopping" style="margin: 0;">
+            <i class="fas fa-arrow-left"></i> Continue Shopping
+        </a>
+    </div>
+
+    <!-- Cart Content -->
+    <div class="cart-grid">
+        <!-- Cart Items -->
+        <div class="cart-items-section" id="cartItemsSection">
+            <!-- Cart Header -->
+            <div class="cart-item-header">
+                <div>Product</div>
+                <div style="text-align: center;">Price</div>
+                <div style="text-align: center;">Quantity</div>
+                <div style="text-align: center;">Total</div>
+                <div style="text-align: center;">Action</div>
+            </div>
+
+            <!-- Cart Items Container -->
+            <div id="cartItemsContainer">
+                <!-- Items will be rendered by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Cart Summary -->
+        <div class="cart-summary">
+            <div class="summary-card">
+                <div class="summary-title">
+                    <i class="fas fa-receipt"></i> Order Summary
+                </div>
+                
+                <div class="summary-row">
+                    <span>Subtotal</span>
+                    <span class="value" id="summarySubtotal">Tk0.00</span>
+                </div>
+                
+                <div class="summary-row" id="savingsRow" style="display: none;">
+                    <span>Total Savings</span>
+                    <span class="value discount" id="summarySavings">-Tk0.00</span>
+                </div>
+                
+                <div class="summary-row" id="discountRow" style="display: none;">
+                    <span>Coupon Discount</span>
+                    <span class="value discount" id="summaryDiscount">-Tk0.00</span>
+                </div>
+                
+                <div class="summary-divider"></div>
+                
+                <div class="summary-row total">
+                    <span>Total Payable</span>
+                    <span class="value" id="summaryTotal">Tk0.00</span>
+                </div>
+
+                <!-- Coupon Section -->
+                <div class="coupon-section">
+                    <div class="coupon-input-group">
+                        <input type="text" placeholder="Coupon code (SAVE10, SAVE20)" id="couponInput" />
+                        <button id="applyCouponBtn">APPLY</button>
+                    </div>
+                </div>
+
+                <button class="btn-checkout-cart" id="checkoutBtn">
+                    <i class="fas fa-lock"></i> PROCEED TO CHECKOUT →
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/cart.js' %}"></script>
+<script>
+    // Initialize cart on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        loadCart();
+        
+        // Update floating cart badge if exists
+        if (typeof updateFloatingCartBadge === 'function') {
+            updateFloatingCartBadge();
+        }
+    });
+</script>
+{% endblock %}

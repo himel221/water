@@ -1,0 +1,263 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Checkout - Superwater{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/checkout.css' %}" />
+{% endblock %}
+
+{% block content %}
+<div class="checkout-page">
+    <!-- Header -->
+    <div class="checkout-header">
+        <a href="{% url 'cart' %}" class="back-btn">
+            <i class="fas fa-arrow-left"></i>
+        </a>
+        <h1>Checkout</h1>
+        <div class="header-right">
+            <span class="step-indicator">Step 2 of 3</span>
+        </div>
+    </div>
+
+    <!-- Progress Bar -->
+    <div class="progress-bar">
+        <div class="progress-step active">
+            <span class="step-number">1</span>
+            <span class="step-label">Cart</span>
+        </div>
+        <div class="progress-line active"></div>
+        <div class="progress-step active">
+            <span class="step-number">2</span>
+            <span class="step-label">Checkout</span>
+        </div>
+        <div class="progress-line"></div>
+        <div class="progress-step">
+            <span class="step-number">3</span>
+            <span class="step-label">Payment</span>
+        </div>
+    </div>
+
+    <div class="checkout-container">
+        <!-- Left Column -->
+        <div class="checkout-left">
+            <!-- Delivery Address -->
+            <div class="checkout-card address-card">
+                <div class="card-header">
+                    <h3><i class="fas fa-map-marker-alt"></i> Delivery Address</h3>
+                    <span class="card-badge">Required</span>
+                </div>
+                
+                <div class="address-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Full Name <span class="required">*</span></label>
+                            <input type="text" id="customerName" placeholder="Enter your full name" class="form-control" />
+                            <i class="fas fa-user input-icon"></i>
+                        </div>
+                        <div class="form-group">
+                            <label>Phone Number <span class="required">*</span></label>
+                            <input type="tel" id="customerPhone" placeholder="Enter your phone number" class="form-control" />
+                            <i class="fas fa-phone input-icon"></i>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Email Address</label>
+                        <input type="email" id="customerEmail" placeholder="Enter your email address" class="form-control" />
+                        <i class="fas fa-envelope input-icon"></i>
+                    </div>
+                    <div class="form-group">
+                        <label>Delivery Address <span class="required">*</span></label>
+                        <textarea id="customerAddress" rows="3" placeholder="Enter your full delivery address (House, Road, Area)" class="form-control"></textarea>
+                        <i class="fas fa-home input-icon textarea-icon"></i>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>District <span class="required">*</span></label>
+                            <select id="customerDistrict" class="form-control">
+                                <option value="">Select your district</option>
+                            </select>
+                            <i class="fas fa-chevron-down select-icon"></i>
+                        </div>
+                        <div class="form-group">
+                            <label>Delivery Charge</label>
+                            <input type="text" id="deliveryCharge" value="৳0.00" readonly class="form-control delivery-charge-input" />
+                            <i class="fas fa-truck input-icon"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+<!-- Payment Methods -->
+<div class="checkout-card payment-card">
+    <h3><i class="fas fa-credit-card"></i> Payment Methods</h3>
+    <div class="payment-options">
+        <!-- Cash on Delivery -->
+        <div class="payment-option active" data-payment="Cash on Delivery">
+            <div class="option-left">
+                <i class="fas fa-check-circle"></i>
+                <div class="payment-icon-wrapper bkash-icon">
+                    <img src="{% static 'images/payments/cod.png' %}" alt="bKash" class="payment-icon-img" />
+                </div>
+                <div>
+                    <span class="option-name">Cash on Delivery</span>
+                    <span class="option-desc">Pay when you receive</span>
+                </div>
+            </div>
+            <i class="fas fa-chevron-right"></i>
+        </div>
+        
+        <!-- bKash -->
+        <div class="payment-option" data-payment="bKash">
+            <div class="option-left">
+                <i class="far fa-circle"></i>
+                <div class="payment-icon-wrapper bkash-icon">
+                    <img src="{% static 'images/payments/bkash.png' %}" alt="bKash" class="payment-icon-img" />
+                </div>
+                <div>
+                    <span class="option-name">bKash</span>
+                    <span class="option-desc">Mobile banking</span>
+                </div>
+            </div>
+            <i class="fas fa-chevron-right"></i>
+        </div>
+        
+        <!-- Nagad -->
+        <div class="payment-option" data-payment="Nagad">
+            <div class="option-left">
+                <i class="far fa-circle"></i>
+                <div class="payment-icon-wrapper nagad-icon">
+                    <img src="{% static 'images/payments/nagad.png' %}" alt="Nagad" class="payment-icon-img" />
+                </div>
+                <div>
+                    <span class="option-name">Nagad</span>
+                    <span class="option-desc">Mobile banking</span>
+                </div>
+            </div>
+            <i class="fas fa-chevron-right"></i>
+        </div>
+        
+        <!-- Rocket -->
+        <div class="payment-option" data-payment="Rocket">
+            <div class="option-left">
+                <i class="far fa-circle"></i>
+                <div class="payment-icon-wrapper rocket-icon">
+                    <img src="{% static 'images/payments/rocket.png' %}" alt="Rocket" class="payment-icon-img" />
+                </div>
+                <div>
+                    <span class="option-name">Rocket</span>
+                    <span class="option-desc">Mobile banking</span>
+                </div>
+            </div>
+            <i class="fas fa-chevron-right"></i>
+        </div>
+        
+        <!-- Credit / Debit Card -->
+        <div class="payment-option" data-payment="Credit / Debit Card">
+            <div class="option-left">
+                <i class="far fa-circle"></i>
+
+               <div class="payment-icon-wrapper rocket-icon">
+                    <img src="{% static 'images/payments/master.webp' %}" alt="Rocket" class="payment-icon-img" />
+                </div>
+                
+                <div>
+                    <span class="option-name">Credit / Debit Card</span>
+                    <span class="option-desc">Visa, MasterCard, Amex</span>
+                </div>
+            </div>
+            <i class="fas fa-chevron-right"></i>
+        </div>
+    </div>
+</div>
+        </div>
+
+        <!-- Right Column - Order Summary -->
+        <div class="checkout-right">
+            <div class="checkout-card summary-card">
+                <h3><i class="fas fa-receipt"></i> Order Summary</h3>
+                
+                <!-- Order Items -->
+                <div class="order-items" id="orderItems">
+                    <!-- Dynamic items from cart -->
+                </div>
+
+                <!-- Delivery Info -->
+                <div class="delivery-info" id="deliveryInfo">
+                    <div class="info-row">
+                        <i class="fas fa-user"></i>
+                        <span id="summaryName">-</span>
+                    </div>
+                    <div class="info-row">
+                        <i class="fas fa-phone"></i>
+                        <span id="summaryPhone">-</span>
+                    </div>
+                    <div class="info-row">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <span id="summaryAddress">-</span>
+                    </div>
+                    <div class="info-row">
+                        <i class="fas fa-truck"></i>
+                        <span id="summaryDistrict">-</span>
+                    </div>
+                    <div class="info-row">
+                        <i class="fas fa-credit-card"></i>
+                        <span id="summaryPayment">Cash on Delivery</span>
+                    </div>
+                </div>
+
+                <!-- Price Details -->
+                <div class="price-details">
+                    <div class="price-row">
+                        <span>Product (<span id="itemCount">0</span> items)</span>
+                        <span id="subtotal">৳0.00</span>
+                    </div>
+                    <div class="price-row">
+                        <span>Subtotal</span>
+                        <span id="subtotal2">৳0.00</span>
+                    </div>
+                    <div class="price-row">
+                        <span>Shipping</span>
+                        <span id="shippingCost">৳0.00</span>
+                    </div>
+                    <div class="price-row total-row">
+                        <span>Total Payment</span>
+                        <span id="totalAmount">৳0.00</span>
+                    </div>
+                </div>
+
+                <button class="btn-place-order" id="placeOrderBtn">
+                    <i class="fas fa-lock"></i> Place Order
+                </button>
+                
+                <p class="secure-checkout">
+                    <i class="fas fa-shield-alt"></i> Secure Checkout
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Success Modal -->
+<div class="modal-overlay" id="successModal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-icon">
+            <i class="fas fa-check-circle"></i>
+        </div>
+        <h2>Order Placed Successfully!</h2>
+        <p>Thank you for your order. We will confirm it shortly.</p>
+        <p class="modal-order-id" id="modalOrderId">Order ID: #ORD-123456</p>
+        <button class="modal-btn" id="modalContinueBtn">Continue Shopping</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/checkout.js' %}"></script>
+<script>
+    // Load cart data
+    document.addEventListener('DOMContentLoaded', function() {
+        loadCheckoutData();
+    });
+</script>
+{% endblock %}

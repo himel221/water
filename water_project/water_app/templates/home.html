@@ -1,0 +1,19 @@
+# home.html-এ কন্টেন্ট দিন
+@"
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-12 text-center">
+            <h1 class="display-4 text-primary">🫧 Aquanimity SuperWater</h1>
+            <p class="lead">পানির বিশুদ্ধতা, আপনার স্বাস্থ্যের নিশ্চয়তা</p>
+            <hr class="my-4">
+            <p>আমাদের বিশেষায়িত পানি পরিশোধন প্রযুক্তি ও স্বাস্থ্যসম্মত পানি সরবরাহে অভিজ্ঞ</p>
+            <a href="{% url 'shop' %}" class="btn btn-primary btn-lg">শপিং শুরু করুন</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+"@ | Out-File -FilePath water_app\templates\home.html -Encoding utf8
