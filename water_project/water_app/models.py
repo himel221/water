@@ -173,9 +173,11 @@ class Order(models.Model):
     delivery_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     delivery_zone = models.CharField(max_length=100, blank=True, null=True)
     
+    # ✅ Order Summary Fields
     subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total_savings = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    total_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    total_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # ✅ Total Discount যোগ করা হয়েছে
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     payment_status = models.CharField(max_length=20, choices=PAYMENT_CHOICES, default='pending')
@@ -203,6 +205,14 @@ class Order(models.Model):
     
     def get_total_items(self):
         return sum(item.quantity for item in self.order_items.all())
+    
+    def calculate_total_discount(self):
+        """Calculate total discount for the order"""
+        total_discount = 0
+        for item in self.order_items.all():
+            if item.original_price and item.original_price > item.product_price:
+                total_discount += (float(item.original_price) - float(item.product_price)) * item.quantity
+        return total_discount
     
     def parse_offer_requirements(self, offer_text):
         """Parse offer text and return requirements dynamically"""
@@ -419,3 +429,11 @@ class Order(models.Model):
                     })
         
         return requirements
+    @property
+    def special_offers_list(self):
+        """Get list of special offers applied to this order"""
+        offers = []
+        for item in self.order_items.all():
+            if item.special_offer:
+                offers.append(item.special_offer)
+        return list(set(offers))  # Remove duplicates

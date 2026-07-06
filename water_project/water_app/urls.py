@@ -17,4 +17,8 @@ urlpatterns = [
     path('api/orders/', views.order_list, name='order_list'),
     path('api/invoice/<str:order_id>/', views.download_invoice, name='download_invoice'),
     path('cart/', views.cart, name='cart'),
+
+    #Admin Views
+    path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),
+     path('admin-orders/', views.admin_orders, name='admin_orders'),
 ]

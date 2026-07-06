@@ -448,3 +448,95 @@ def download_invoice(request, order_id):
     response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="invoice_{order.order_id}.pdf"'
     return response
+
+#----------------------------------------------ADMIN -----------------------------------------------------------#
+
+def admin_dashboard(request):
+    """Admin Dashboard View"""
+    from .models import Order, Product, OrderItem, DistrictDeliveryCharge
+    
+    context = {
+        'active_page': 'admin_dashboard',
+        'total_orders': Order.objects.count(),
+        'total_products': Product.objects.count(),
+        'total_customers': Order.objects.values('customer_email').distinct().count(),
+        'total_revenue': sum(float(o.total_amount) for o in Order.objects.all()),
+        'recent_orders': Order.objects.all().order_by('-created_at')[:5],
+        'pending_orders': Order.objects.filter(status='pending').count(),
+        'shipped_orders': Order.objects.filter(status='shipped').count(),
+        'delivered_orders': Order.objects.filter(status='delivered').count(),
+        'total_items': OrderItem.objects.count(),
+        'districts': DistrictDeliveryCharge.objects.filter(is_active=True),
+    }
+    return render(request, 'admin_dashboard.html', context)
+
+
+
+def admin_orders(request):
+    """Admin Orders Management View"""
+    from .models import Order, OrderItem, Product
+    import json
+    
+    orders = Order.objects.all().order_by('-created_at')
+    
+    # Calculate stats
+    total_orders = orders.count()
+    pending_orders = orders.filter(status='pending').count()
+    shipped_orders = orders.filter(status='shipped').count()
+    delivered_orders = orders.filter(status='delivered').count()
+    cancelled_orders = orders.filter(status='cancelled').count()
+    
+    # Prepare orders for JSON and Template
+    orders_json = []
+    for order in orders:
+        # ✅ Database থেকে total_discount নিন
+        total_discount = float(order.total_discount) if order.total_discount else 0
+        
+        # Get special offers list
+        special_offers = []
+        for item in order.order_items.all():
+            if item.special_offer:
+                special_offers.append(item.special_offer)
+        special_offers = list(set(special_offers))
+        
+        orders_json.append({
+            'order_id': order.order_id,
+            'customer_name': order.customer_name,
+            'customer_email': order.customer_email,
+            'customer_phone': order.customer_phone or '',
+            'customer_address': order.customer_address,
+            'customer_district': order.customer_district or '',
+            'get_total_items': order.get_total_items(),
+            'total_amount': float(order.total_amount) if order.total_amount else 0,
+            'total_savings': float(order.total_savings) if order.total_savings else 0,
+            'total_discount': total_discount,  # ✅ Database থেকে
+            'status': order.status,
+            'special_offers_list': special_offers,
+            'is_eligible_for_offer': order.is_eligible_for_offer(),
+            'created_at': order.created_at.isoformat(),
+            'items': [
+                {
+                    'product_name': item.product_name,
+                    'quantity': item.quantity,
+                    'product_price': float(item.product_price),
+                    'original_price': float(item.original_price),
+                    'discount_percentage': item.discount_percentage,
+                    'special_offer': item.special_offer or '',
+                }
+                for item in order.order_items.all()
+            ]
+        })
+    
+    context = {
+        'active_page': 'admin_orders',
+        'orders': orders,
+        'orders_json': json.dumps(orders_json) if orders_json else '[]',
+        'total_orders': total_orders,
+        'pending_orders': pending_orders,
+        'shipped_orders': shipped_orders,
+        'delivered_orders': delivered_orders,
+        'cancelled_orders': cancelled_orders,
+        'total_products': Product.objects.count(),
+        'total_customers': orders.values('customer_email').distinct().count(),
+    }
+    return render(request, 'admin_orders.html', context)

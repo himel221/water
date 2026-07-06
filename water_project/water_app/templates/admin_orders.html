@@ -1,0 +1,338 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Admin - Orders Management{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'css/admin_orders.css' %}" />
+{% endblock %}
+
+{% block content %}
+<div class="admin-orders-page">
+    <!-- Sidebar Overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Sidebar -->
+    <div class="admin-sidebar" id="adminSidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <i class="fas fa-droplet"></i>
+                <span>Superwater</span>
+            </div>
+        </div>
+        <div class="sidebar-menu">
+            <a href="{% url 'admin_dashboard' %}">
+                <div class="menu-item">
+                    <i class="fas fa-th-large"></i>
+                    <span>Dashboard</span>
+                </div>
+            </a>
+            <a href="{% url 'admin_orders' %}">
+                <div class="menu-item active">
+                    <i class="fas fa-shopping-bag"></i>
+                    <span>Orders</span>
+                    <span class="badge">{{ total_orders|default:0 }}</span>
+                </div>
+            </a>
+            <a href="#">
+                <div class="menu-item">
+                    <i class="fas fa-box"></i>
+                    <span>Products</span>
+                    <span class="badge">{{ total_products|default:0 }}</span>
+                </div>
+            </a>
+            <a href="#">
+                <div class="menu-item">
+                    <i class="fas fa-users"></i>
+                    <span>Customers</span>
+                    <span class="badge">{{ total_customers|default:0 }}</span>
+                </div>
+            </a>
+            <a href="#">
+                <div class="menu-item">
+                    <i class="fas fa-truck"></i>
+                    <span>Delivery</span>
+                </div>
+            </a>
+            <a href="#">
+                <div class="menu-item">
+                    <i class="fas fa-tags"></i>
+                    <span>Offers</span>
+                </div>
+            </a>
+            <a href="#">
+                <div class="menu-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Analytics</span>
+                </div>
+            </a>
+            <a href="#">
+                <div class="menu-item">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </div>
+            </a>
+        </div>
+        <div class="sidebar-footer">
+            <a href="{% url 'home' %}">
+                <div class="menu-item">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+        <!-- Top Navbar -->
+        <nav class="admin-top-navbar">
+            <div class="navbar-left">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="brand">
+                    <i class="fas fa-droplet"></i>
+                    <span>Superwater</span>
+                </div>
+            </div>
+            <div class="navbar-center">
+                <div class="date-display">
+                    <i class="far fa-calendar-alt"></i>
+                    <span id="currentDate"></span>
+                </div>
+                <div class="weather-display">
+                    <i class="fas fa-cloud-rain"></i>
+                    <span>Rain tomorrow</span>
+                </div>
+            </div>
+            <div class="navbar-right">
+                <div class="notification-icon">
+                    <i class="fas fa-bell"></i>
+                    <span class="badge">3</span>
+                </div>
+                <div class="admin-profile">
+                    <div class="profile-img">A</div>
+                    <span class="admin-name">Admin</span>
+                    <i class="fas fa-chevron-down" style="font-size: 12px; color: #999;"></i>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Stats -->
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-icon blue"><i class="fas fa-shopping-cart"></i></div>
+                <div>
+                    <div class="stat-number">{{ total_orders|default:0 }}</div>
+                    <div class="stat-label">Total Orders</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon yellow"><i class="fas fa-clock"></i></div>
+                <div>
+                    <div class="stat-number">{{ pending_orders|default:0 }}</div>
+                    <div class="stat-label">Pending</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon blue"><i class="fas fa-truck"></i></div>
+                <div>
+                    <div class="stat-number">{{ shipped_orders|default:0 }}</div>
+                    <div class="stat-label">Shipped</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
+                <div>
+                    <div class="stat-number">{{ delivered_orders|default:0 }}</div>
+                    <div class="stat-label">Delivered</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon red"><i class="fas fa-times-circle"></i></div>
+                <div>
+                    <div class="stat-number">{{ cancelled_orders|default:0 }}</div>
+                    <div class="stat-label">Cancelled</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter -->
+        <div class="filter-section">
+            <div class="filter-left">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Search orders..." id="searchInput" />
+                </div>
+                <select class="filter-select" id="statusFilter">
+                    <option value="all">All Status</option>
+                    <option value="pending">Pending</option>
+                    <option value="processing">Processing</option>
+                    <option value="shipped">Shipped</option>
+                    <option value="delivered">Delivered</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+                <select class="filter-select" id="dateFilter">
+                    <option value="all">All Time</option>
+                    <option value="today">Today</option>
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                </select>
+            </div>
+            <div>
+                <span style="color: #7f8c8d; font-size: 14px;">{{ orders|length }} orders found</span>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="table-container">
+            <table class="orders-table">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="selectAll" /></th>
+                        <th>Order ID</th>
+                        <th>Customer</th>
+                        <th>District</th>
+                        <th>Items</th>
+                        <th>Products</th>
+                        <th>Total</th>
+                        <th>Discount</th>
+                        <th>Status</th>
+                        <th>Special Offer</th>
+                        <th>Offer Status</th>
+                        <th>Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="ordersTableBody">
+                    {% for order in orders %}
+                    <tr>
+                        <td><input type="checkbox" class="order-checkbox" /></td>
+                        <td><span class="order-id">{{ order.order_id }}</span></td>
+                        <td>
+                            <span class="customer-name">{{ order.customer_name }}</span>
+                            <span class="customer-email">{{ order.customer_email }}</span>
+                        </td>
+                        <td>{{ order.customer_district|default:"-" }}</td>
+                        <td>{{ order.get_total_items }}</td>
+                        <td>
+                            <div class="products-info">
+                                {% for item in order.order_items.all|slice:":3" %}
+                                <div class="product-item-small">
+                                    <span class="product-name-small">{{ item.product_name }}</span>
+                                    <span class="product-qty">x{{ item.quantity }}</span>
+                                    {% if item.discount_percentage > 0 %}
+                                    <span class="product-discount-small">({{ item.discount_percentage }}% OFF)</span>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                                {% if order.order_items.all|length > 3 %}
+                                <div style="font-size: 12px; color: #999;">+{{ order.order_items.all|length|add:"-3" }} more</div>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td><span class="amount">৳{{ order.total_amount|floatformat:2 }}</span></td>
+                        <td>
+                            {% if order.total_discount > 0 %}
+                            <span class="total-discount">-৳{{ order.total_discount|floatformat:2 }}</span>
+                            {% else %}
+                            <span class="no-discount">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="status-badge {{ order.status }}">
+                                <i class="fas fa-circle"></i>
+                                {{ order.get_status_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if order.special_offers_list %}
+                            <div>
+                                {% for offer in order.special_offers_list|slice:":2" %}
+                                <span class="offer-tag">🎉 {{ offer }}</span>
+                                {% endfor %}
+                                {% if order.special_offers_list|length > 2 %}
+                                <span class="offer-tag">+{{ order.special_offers_list|length|add:"-2" }} more</span>
+                                {% endif %}
+                            </div>
+                            {% else %}
+                            <span style="color: #b2bec3;">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if order.is_eligible_for_offer %}
+                            <span class="offer-badge eligible"><i class="fas fa-check-circle"></i> Eligible</span>
+                            {% else %}
+                            <span class="offer-badge non-eligible"><i class="fas fa-times-circle"></i> Not Eligible</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span style="display: block; font-weight: 500; font-size: 13px;">{{ order.created_at|date:"d M Y" }}</span>
+                            <span style="display: block; font-size: 11px; color: #b2bec3;">{{ order.created_at|date:"h:i A" }}</span>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="btn-view" data-order-id="{{ order.order_id }}"><i class="fas fa-eye"></i></button>
+                                <button class="btn-edit" data-order-id="{{ order.order_id }}"><i class="fas fa-edit"></i></button>
+                                <button class="btn-delete" data-order-id="{{ order.order_id }}"><i class="fas fa-trash"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="13" class="no-orders">
+                            <i class="fas fa-shopping-bag"></i>
+                            <h3>No Orders Found</h3>
+                            <p>Start making sales and watch your orders grow!</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination-section">
+            <div class="pagination-info">
+                Showing <span id="startCount">1</span> to <span id="endCount">10</span> of <span id="totalCount">{{ orders|length }}</span> orders
+            </div>
+            <div class="pagination-buttons">
+                <button class="page-btn" id="prevPage"><i class="fas fa-chevron-left"></i></button>
+                <button class="page-btn active">1</button>
+                <button class="page-btn">2</button>
+                <button class="page-btn">3</button>
+                <button class="page-btn" id="nextPage"><i class="fas fa-chevron-right"></i></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="orderModal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-receipt"></i> Order Details</h3>
+            <button class="modal-close" id="closeModal"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body" id="orderDetailBody">
+            <!-- Order details will be loaded here -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/admin_orders.js' %}"></script>
+<script>
+    // Order Data from Django
+    const orderData = {{ orders_json|default:'[]'|safe }};
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeOrders(orderData);
+    });
+</script>
+{% endblock %}

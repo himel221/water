@@ -1,0 +1,327 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Admin Dashboard - Superwater{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'css/admin_dashboard.css' %}" />
+{% endblock %}
+
+{% block content %}
+<div class="admin-dashboard">
+    <!-- Top Navbar -->
+    <nav class="admin-navbar">
+        <div class="navbar-left">
+            <button class="sidebar-toggle" id="sidebarToggle">
+                <i class="fas fa-bars"></i>
+            </button>
+            <span class="brand">Superwater</span>
+        </div>
+        <div class="navbar-right">
+            <div class="notification-icon">
+                <i class="fas fa-bell"></i>
+                <span class="badge">3</span>
+            </div>
+            <div class="admin-profile">
+                <img src="{% static 'images/admin-avatar.png' %}" alt="Admin" class="profile-img" />
+                <span class="admin-name">Admin</span>
+                <i class="fas fa-chevron-down"></i>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">
+                <i class="fas fa-droplet"></i>
+                <span>Superwater</span>
+            </div>
+        </div>
+        <div class="sidebar-menu">
+            <a href="{% url 'admin_dashboard' %}" class="menu-item {% if active_page == 'admin_dashboard' %}active{% endif %}">
+                <i class="fas fa-th-large"></i>
+                <span>Dashboard</span>
+            </a>
+            <!-- ✅ Orders - এখানে ক্লিক করলে Order Page এ যাবে -->
+            <a href="{% url 'admin_orders' %}" class="menu-item {% if active_page == 'admin_orders' %}active{% endif %}">
+                <i class="fas fa-shopping-bag"></i>
+                <span>Orders</span>
+                <span class="badge">{{ total_orders|default:0 }}</span>
+            </a>
+            <a href="#" class="menu-item">
+                <i class="fas fa-box"></i>
+                <span>Products</span>
+                <span class="badge">{{ total_products|default:0 }}</span>
+            </a>
+            <a href="#" class="menu-item">
+                <i class="fas fa-users"></i>
+                <span>Customers</span>
+                <span class="badge">{{ total_customers|default:0 }}</span>
+            </a>
+            <a href="#" class="menu-item">
+                <i class="fas fa-truck"></i>
+                <span>Delivery</span>
+            </a>
+            <a href="#" class="menu-item">
+                <i class="fas fa-tags"></i>
+                <span>Offers</span>
+            </a>
+            <a href="#" class="menu-item">
+                <i class="fas fa-chart-line"></i>
+                <span>Analytics</span>
+            </a>
+            <a href="#" class="menu-item">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </a>
+        </div>
+        <div class="sidebar-footer">
+            <a href="{% url 'home' %}" class="menu-item">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </a>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+        <!-- Welcome Section -->
+        <div class="welcome-section">
+            <div class="welcome-text">
+                <h2>Welcome back, Admin! 👋</h2>
+                <p>Here's what's happening with your store today.</p>
+            </div>
+            <div class="date-time">
+                <i class="far fa-calendar-alt"></i>
+                <span id="currentDateTime"></span>
+            </div>
+        </div>
+
+        <!-- Stats Cards -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-icon blue">
+                    <i class="fas fa-shopping-cart"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>{{ total_orders|default:0 }}</h3>
+                    <p>Total Orders</p>
+                </div>
+                <div class="stat-change positive">
+                    <i class="fas fa-arrow-up"></i> 12.5%
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon green">
+                    <i class="fas fa-box"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>{{ total_products|default:0 }}</h3>
+                    <p>Products</p>
+                </div>
+                <div class="stat-change positive">
+                    <i class="fas fa-arrow-up"></i> 0%
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon purple">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>{{ total_customers|default:0 }}</h3>
+                    <p>Customers</p>
+                </div>
+                <div class="stat-change positive">
+                    <i class="fas fa-arrow-up"></i> 15.2%
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon orange">
+                    <i class="fas fa-taka-sign"></i>
+                </div>
+                <div class="stat-info">
+                    <h3>৳{{ total_revenue|default:0|floatformat:0 }}</h3>
+                    <p>Revenue</p>
+                </div>
+                <div class="stat-change positive">
+                    <i class="fas fa-arrow-up"></i> 8.3%
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts & Tables -->
+        <div class="dashboard-grid">
+            <!-- Order Chart -->
+            <div class="card chart-card">
+                <div class="card-header">
+                    <h4><i class="fas fa-chart-bar"></i> Weekly Orders</h4>
+                    <select class="form-select-sm">
+                        <option>This Week</option>
+                        <option>Last Week</option>
+                        <option>This Month</option>
+                    </select>
+                </div>
+                <div class="card-body">
+                    <canvas id="ordersChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Recent Orders -->
+            <div class="card recent-orders-card">
+                <div class="card-header">
+                    <h4><i class="fas fa-clock"></i> Recent Orders</h4>
+                    <a href="{% url 'admin_orders' %}" class="view-all">View All</a>
+                </div>
+                <div class="card-body">
+                    {% for order in recent_orders|slice:":5" %}
+                    <div class="order-item">
+                        <div class="order-info">
+                            <span class="order-id">#{{ order.order_id }}</span>
+                            <span class="customer-name">{{ order.customer_name }}</span>
+                        </div>
+                        <div class="order-status {{ order.status }}">{{ order.get_status_display }}</div>
+                        <div class="order-amount">৳{{ order.total_amount|floatformat:2 }}</div>
+                    </div>
+                    {% empty %}
+                    <div class="no-orders">
+                        <p>No recent orders</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Product Overview -->
+            <div class="card product-overview-card">
+                <div class="card-header">
+                    <h4><i class="fas fa-box"></i> Product Overview</h4>
+                    <a href="#" class="view-all">View All</a>
+                </div>
+                <div class="card-body">
+                    {% for product in products|slice:":3" %}
+                    <div class="product-item">
+                        <div class="product-info">
+                            <span class="product-name">{{ product.name }}</span>
+                            <span class="product-stock">Stock: {{ product.stock_quantity }}</span>
+                        </div>
+                        <div class="product-price">৳{{ product.price|floatformat:2 }}</div>
+                    </div>
+                    {% empty %}
+                    <div class="no-products">
+                        <p>No products available</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Delivery Stats -->
+            <div class="card delivery-card">
+                <div class="card-header">
+                    <h4><i class="fas fa-truck"></i> Delivery Stats</h4>
+                </div>
+                <div class="card-body">
+                    <div class="delivery-stats">
+                        {% for district in districts|slice:":3" %}
+                        <div class="stat-item">
+                            <span class="stat-label">{{ district.district_name }}</span>
+                            <span class="stat-value">৳{{ district.charge|floatformat:2 }}</span>
+                        </div>
+                        {% empty %}
+                        <div class="stat-item">
+                            <span class="stat-label">No districts</span>
+                            <span class="stat-value">-</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div class="delivery-progress">
+                        <div class="progress-item">
+                            <span>On Time Delivery</span>
+                            <div class="progress">
+                                <div class="progress-bar" style="width: 95%;">95%</div>
+                            </div>
+                        </div>
+                        <div class="progress-item">
+                            <span>Order Accuracy</span>
+                            <div class="progress">
+                                <div class="progress-bar" style="width: 98%;">98%</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'js/admin_dashboard.js' %}"></script>
+<script>
+    // ===== Chart.js Chart =====
+    const ctx = document.getElementById('ordersChart').getContext('2d');
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            datasets: [{
+                label: 'Orders',
+                data: [2, 1, 3, 0, 2, 0, 0],
+                backgroundColor: [
+                    'rgba(52, 152, 219, 0.8)',
+                    'rgba(52, 152, 219, 0.8)',
+                    'rgba(52, 152, 219, 0.8)',
+                    'rgba(52, 152, 219, 0.8)',
+                    'rgba(52, 152, 219, 0.8)',
+                    'rgba(52, 152, 219, 0.8)',
+                    'rgba(52, 152, 219, 0.8)'
+                ],
+                borderColor: 'rgba(52, 152, 219, 1)',
+                borderWidth: 2,
+                borderRadius: 8
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+
+    // ===== Date Time =====
+    function updateDateTime() {
+        const now = new Date();
+        const options = { 
+            weekday: 'long', 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit'
+        };
+        document.getElementById('currentDateTime').textContent = now.toLocaleDateString('en-US', options);
+    }
+    updateDateTime();
+    setInterval(updateDateTime, 1000);
+
+    // ===== Sidebar Toggle =====
+    document.getElementById('sidebarToggle').addEventListener('click', function() {
+        document.getElementById('sidebar').classList.toggle('collapsed');
+        document.getElementById('mainContent').classList.toggle('expanded');
+    });
+</script>
+{% endblock %}
