@@ -31,26 +31,33 @@
         color: #2c3e50;
         font-size: 14px;
     }
-    .product-sku {
-        font-size: 11px;
-        color: #7f8c8d;
-        display: block;
-    }
     
     .price-current {
         font-weight: 700;
         color: #28a745;
         font-size: 15px;
     }
-    .price-original {
-        font-size: 12px;
+    
+    .price-discount {
+        font-weight: 700;
         color: #dc3545;
+        font-size: 15px;
+    }
+    
+    .price-original {
+        font-size: 13px;
+        color: #999;
         text-decoration: line-through;
         display: block;
     }
-    .price-savings {
+    
+    .discount-percent-badge {
+        display: inline-block;
+        background: #dc3545;
+        color: white;
+        padding: 2px 10px;
+        border-radius: 12px;
         font-size: 11px;
-        color: #28a745;
         font-weight: 600;
     }
     
@@ -215,12 +222,6 @@
         transform: translateY(-2px);
         box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
     }
-    .export-badge {
-        background: rgba(255,255,255,0.2);
-        padding: 2px 10px;
-        border-radius: 20px;
-        font-size: 11px;
-    }
     
     /* ===== Modal Styles ===== */
     .modal-product-image {
@@ -259,6 +260,10 @@
         color: #28a745;
         font-size: 16px;
     }
+    .modal-detail-item .value.discount-price {
+        color: #dc3545;
+        font-size: 16px;
+    }
     
     /* ===== Quick Edit Modal ===== */
     .quick-edit-form .form-group {
@@ -292,6 +297,11 @@
     .quick-edit-form .form-row {
         display: grid;
         grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+    .quick-edit-form .form-row-3 {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
         gap: 16px;
     }
     
@@ -350,6 +360,9 @@
             grid-template-columns: 1fr;
         }
         .quick-edit-form .form-row {
+            grid-template-columns: 1fr;
+        }
+        .quick-edit-form .form-row-3 {
             grid-template-columns: 1fr;
         }
         .product-image-thumb {
@@ -541,8 +554,10 @@
                         <th style="width: 70px;">Image</th>
                         <th>Product</th>
                         <th>Price</th>
+                        <th>Discount Price</th>
+                        <th>Discount %</th>
                         <th>Stock</th>
-                        <th>Offer</th>
+                        <th>Special Offer</th>
                         <th>Status</th>
                         <th>Created</th>
                         <th style="width: 140px;">Actions</th>
@@ -563,28 +578,37 @@
                         </td>
                         <td>
                             <span class="product-name-cell">{{ product.name }}</span>
-                            <span class="product-sku">SKU: {{ product.sku|default:"N/A" }}</span>
                         </td>
                         <td>
                             <span class="price-current">৳{{ product.price|floatformat:2 }}</span>
-                            {% if product.compare_price and product.compare_price > product.price %}
-                            <span class="price-original">৳{{ product.compare_price|floatformat:2 }}</span>
-                            <span class="price-savings">Save {{ product.get_savings_percentage }}%</span>
+                        </td>
+                        <td>
+                            {% if product.discount_price %}
+                            <span class="price-discount">৳{{ product.discount_price|floatformat:2 }}</span>
+                            {% else %}
+                            <span style="color: #999;">-</span>
                             {% endif %}
                         </td>
                         <td>
-                            {% if product.stock > 20 %}
-                            <span class="stock-badge in-stock"><i class="fas fa-check-circle"></i> {{ product.stock }} in stock</span>
-                            {% elif product.stock > 0 %}
-                            <span class="stock-badge low-stock"><i class="fas fa-exclamation-circle"></i> {{ product.stock }} left</span>
+                            {% if product.discount_percentage %}
+                            <span class="discount-percent-badge">{{ product.discount_percentage }}% OFF</span>
+                            {% else %}
+                            <span style="color: #999;">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if product.stock_quantity > 20 %}
+                            <span class="stock-badge in-stock"><i class="fas fa-check-circle"></i> {{ product.stock_quantity }} in stock</span>
+                            {% elif product.stock_quantity > 0 %}
+                            <span class="stock-badge low-stock"><i class="fas fa-exclamation-circle"></i> {{ product.stock_quantity }} left</span>
                             {% else %}
                             <span class="stock-badge out-of-stock"><i class="fas fa-times-circle"></i> Out of stock</span>
                             {% endif %}
                         </td>
                         <td>
-                            {% if product.has_active_offer %}
+                            {% if product.special_offer %}
                             <span class="offer-tag active">
-                                <i class="fas fa-gift"></i> {{ product.get_active_offer_display }}
+                                <i class="fas fa-gift"></i> {{ product.special_offer }}
                             </span>
                             {% else %}
                             <span class="offer-tag" style="background: #f0f0f0; color: #999;">No offer</span>
@@ -619,7 +643,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="9" class="no-products">
+                        <td colspan="11" class="no-products">
                             <i class="fas fa-box-open"></i>
                             <h3>No Products Found</h3>
                             <p>Start adding products to your inventory!</p>
@@ -680,11 +704,6 @@
                 </div>
                 
                 <div class="form-group">
-                    <label for="productSku">SKU (Stock Keeping Unit)</label>
-                    <input type="text" class="form-control" id="productSku" placeholder="Enter SKU" />
-                </div>
-                
-                <div class="form-group">
                     <label for="productDescription">Description</label>
                     <textarea class="form-control" id="productDescription" rows="3" placeholder="Enter product description"></textarea>
                 </div>
@@ -695,15 +714,19 @@
                         <input type="number" class="form-control" id="productPrice" placeholder="0.00" step="0.01" min="0" required />
                     </div>
                     <div class="form-group">
-                        <label for="productComparePrice">Compare Price (Optional)</label>
-                        <input type="number" class="form-control" id="productComparePrice" placeholder="0.00" step="0.01" min="0" />
+                        <label for="productDiscountPrice">Discount Price (৳)</label>
+                        <input type="number" class="form-control" id="productDiscountPrice" placeholder="0.00" step="0.01" min="0" />
+                    </div>
+                    <div class="form-group">
+                        <label for="productDiscountPercentage">Discount Percentage (%)</label>
+                        <input type="number" class="form-control" id="productDiscountPercentage" placeholder="0" min="0" max="100" />
                     </div>
                 </div>
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="productStock">Stock Quantity <span style="color: red;">*</span></label>
-                        <input type="number" class="form-control" id="productStock" placeholder="0" min="0" required />
+                        <label for="productStockQuantity">Stock Quantity <span style="color: red;">*</span></label>
+                        <input type="number" class="form-control" id="productStockQuantity" placeholder="0" min="0" required />
                     </div>
                     <div class="form-group">
                         <label for="productStatus">Status</label>
@@ -712,6 +735,11 @@
                             <option value="false">Inactive</option>
                         </select>
                     </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="productSpecialOffer">Special Offer</label>
+                    <input type="text" class="form-control" id="productSpecialOffer" placeholder="e.g., Buy 1 Get 1 Free, 20% Off" />
                 </div>
                 
                 <div class="form-group">

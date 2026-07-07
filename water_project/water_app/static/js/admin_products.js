@@ -25,7 +25,7 @@ function updateStats() {
     const total = currentProducts.length;
     const active = currentProducts.filter(p => p.is_active).length;
     const inactive = currentProducts.filter(p => !p.is_active).length;
-    const lowStock = currentProducts.filter(p => p.stock > 0 && p.stock <= 10).length;
+    const lowStock = currentProducts.filter(p => p.stock_quantity > 0 && p.stock_quantity <= 10).length;
     
     const statNumbers = document.querySelectorAll('.stat-number');
     if (statNumbers.length >= 4) {
@@ -256,7 +256,6 @@ function filterProducts() {
         // Search filter
         const matchSearch = !search || 
             product.name.toLowerCase().includes(search) ||
-            (product.sku && product.sku.toLowerCase().includes(search)) ||
             (product.description && product.description.toLowerCase().includes(search));
         
         // Status filter
@@ -266,9 +265,10 @@ function filterProducts() {
         
         // Stock filter
         let matchStock = true;
-        if (stock === 'in-stock') matchStock = product.stock > 20;
-        else if (stock === 'low-stock') matchStock = product.stock > 0 && product.stock <= 20;
-        else if (stock === 'out-of-stock') matchStock = product.stock === 0;
+        const stockQty = product.stock_quantity || 0;
+        if (stock === 'in-stock') matchStock = stockQty > 20;
+        else if (stock === 'low-stock') matchStock = stockQty > 0 && stockQty <= 20;
+        else if (stock === 'out-of-stock') matchStock = stockQty === 0;
         
         return matchSearch && matchStatus && matchStock;
     });
@@ -287,7 +287,7 @@ function renderTable() {
     if (filteredProducts.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="9" class="no-products">
+                <td colspan="11" class="no-products">
                     <i class="fas fa-box-open"></i>
                     <h3>No Products Found</h3>
                     <p>Try adjusting your filters or search terms.</p>
@@ -305,29 +305,22 @@ function renderTable() {
     
     let html = '';
     pageProducts.forEach(product => {
-        let priceHtml = `
-            <span class="price-current">৳${(product.price || 0).toFixed(2)}</span>
-        `;
-        if (product.compare_price && product.compare_price > product.price) {
-            const savings = ((product.compare_price - product.price) / product.compare_price * 100).toFixed(0);
-            priceHtml += `
-                <span class="price-original">৳${product.compare_price.toFixed(2)}</span>
-                <span class="price-savings">Save ${savings}%</span>
-            `;
-        }
+        const stockQty = product.stock_quantity || 0;
+        const hasOffer = product.special_offer && product.special_offer.trim() !== '';
+        const hasDiscount = product.discount_price || product.discount_percentage;
         
         let stockHtml;
-        if (product.stock > 20) {
-            stockHtml = `<span class="stock-badge in-stock"><i class="fas fa-check-circle"></i> ${product.stock} in stock</span>`;
-        } else if (product.stock > 0) {
-            stockHtml = `<span class="stock-badge low-stock"><i class="fas fa-exclamation-circle"></i> ${product.stock} left</span>`;
+        if (stockQty > 20) {
+            stockHtml = `<span class="stock-badge in-stock"><i class="fas fa-check-circle"></i> ${stockQty} in stock</span>`;
+        } else if (stockQty > 0) {
+            stockHtml = `<span class="stock-badge low-stock"><i class="fas fa-exclamation-circle"></i> ${stockQty} left</span>`;
         } else {
             stockHtml = `<span class="stock-badge out-of-stock"><i class="fas fa-times-circle"></i> Out of stock</span>`;
         }
         
         let offerHtml;
-        if (product.has_active_offer) {
-            offerHtml = `<span class="offer-tag active"><i class="fas fa-gift"></i> ${product.active_offer || 'Active Offer'}</span>`;
+        if (hasOffer) {
+            offerHtml = `<span class="offer-tag active"><i class="fas fa-gift"></i> ${escapeHtml(product.special_offer)}</span>`;
         } else {
             offerHtml = `<span class="offer-tag" style="background: #f0f0f0; color: #999;">No offer</span>`;
         }
@@ -341,21 +334,34 @@ function renderTable() {
                 <i class="fas fa-image fa-2x"></i>
             </div>`;
         
+        // Discount Price display
+        let discountPriceHtml = `<span style="color: #999;">-</span>`;
+        if (product.discount_price) {
+            discountPriceHtml = `<span class="price-discount">৳${(product.discount_price || 0).toFixed(2)}</span>`;
+        }
+        
+        // Discount Percentage display
+        let discountPercentHtml = `<span style="color: #999;">-</span>`;
+        if (product.discount_percentage) {
+            discountPercentHtml = `<span class="discount-percent-badge">${product.discount_percentage}% OFF</span>`;
+        }
+        
         html += `
             <tr>
                 <td><input type="checkbox" class="product-checkbox" data-product-id="${product.id}" /></td>
                 <td>${imageHtml}</td>
                 <td>
                     <span class="product-name-cell">${escapeHtml(product.name)}</span>
-                    <span class="product-sku">SKU: ${escapeHtml(product.sku || 'N/A')}</span>
                 </td>
-                <td>${priceHtml}</td>
+                <td><span class="price-current">৳${(product.price || 0).toFixed(2)}</span></td>
+                <td>${discountPriceHtml}</td>
+                <td>${discountPercentHtml}</td>
                 <td>${stockHtml}</td>
                 <td>${offerHtml}</td>
                 <td><span class="status-badge ${statusClass}"><i class="fas fa-circle"></i> ${statusText}</span></td>
                 <td>
-                    <span style="display: block; font-weight: 500; font-size: 12px;">${formatDate(product.created_at)}</span>
-                    <span style="display: block; font-size: 10px; color: #b2bec3;">${formatTime(product.created_at)}</span>
+                    <span style="display: block; font-weight: 500; font-size: 13px;">${formatDate(product.created_at)}</span>
+                    <span style="display: block; font-size: 11px; color: #b2bec3;">${formatTime(product.created_at)}</span>
                 </td>
                 <td>
                     <div class="action-buttons">
@@ -396,6 +402,10 @@ function viewProduct(productId) {
     const body = document.getElementById('productDetailBody');
     if (!modal || !body) return;
     
+    const hasOffer = product.special_offer && product.special_offer.trim() !== '';
+    const stockQty = product.stock_quantity || 0;
+    const hasDiscount = product.discount_price || product.discount_percentage;
+    
     body.innerHTML = `
         <div style="text-align: center; margin-bottom: 20px;">
             ${product.image_url ? 
@@ -407,26 +417,27 @@ function viewProduct(productId) {
         </div>
         
         <h4 style="color: #1a2332; margin-bottom: 4px;">${escapeHtml(product.name)}</h4>
-        <p style="color: #7f8c8d; font-size: 13px; margin-bottom: 16px;">SKU: ${escapeHtml(product.sku || 'N/A')}</p>
         
         <div class="modal-detail-grid">
             <div class="modal-detail-item">
                 <span class="label"><i class="fas fa-tag"></i> Price</span>
                 <span class="value price">৳${(product.price || 0).toFixed(2)}</span>
             </div>
-            ${product.compare_price && product.compare_price > product.price ? `
             <div class="modal-detail-item">
-                <span class="label"><i class="fas fa-tags"></i> Compare Price</span>
-                <span class="value" style="text-decoration: line-through; color: #dc3545;">৳${product.compare_price.toFixed(2)}</span>
+                <span class="label"><i class="fas fa-tags"></i> Discount Price</span>
+                <span class="value discount-price">${product.discount_price ? '৳' + product.discount_price.toFixed(2) : '-'}</span>
             </div>
-            ` : ''}
+            <div class="modal-detail-item">
+                <span class="label"><i class="fas fa-percent"></i> Discount %</span>
+                <span class="value">${product.discount_percentage ? product.discount_percentage + '%' : '-'}</span>
+            </div>
             <div class="modal-detail-item">
                 <span class="label"><i class="fas fa-boxes"></i> Stock</span>
-                <span class="value">${product.stock || 0}</span>
+                <span class="value">${stockQty}</span>
             </div>
             <div class="modal-detail-item">
-                <span class="label"><i class="fas fa-gift"></i> Offer</span>
-                <span class="value">${product.has_active_offer ? escapeHtml(product.active_offer || 'Active') : 'No offer'}</span>
+                <span class="label"><i class="fas fa-gift"></i> Special Offer</span>
+                <span class="value">${hasOffer ? escapeHtml(product.special_offer) : 'No offer'}</span>
             </div>
             <div class="modal-detail-item">
                 <span class="label"><i class="fas fa-power-off"></i> Status</span>
@@ -476,13 +487,13 @@ function openProductForm(productId = null) {
         editId.value = product.id;
         
         document.getElementById('productName').value = product.name || '';
-        document.getElementById('productSku').value = product.sku || '';
         document.getElementById('productDescription').value = product.description || '';
         document.getElementById('productPrice').value = product.price || '';
-        document.getElementById('productComparePrice').value = product.compare_price || '';
-        document.getElementById('productStock').value = product.stock || 0;
+        document.getElementById('productDiscountPrice').value = product.discount_price || '';
+        document.getElementById('productDiscountPercentage').value = product.discount_percentage || '';
+        document.getElementById('productStockQuantity').value = product.stock_quantity || 0;
+        document.getElementById('productSpecialOffer').value = product.special_offer || '';
         document.getElementById('productStatus').value = product.is_active ? 'true' : 'false';
-        document.getElementById('productOffer').value = product.active_offer || '';
         
         // Show image preview if exists
         const preview = document.getElementById('imagePreview');
@@ -507,41 +518,69 @@ function openProductForm(productId = null) {
 
 // ===== Save Product =====
 function saveProduct() {
+    console.log('🟢 saveProduct() called');
+    
+    // Get all form elements
     const editId = document.getElementById('editProductId');
     const productName = document.getElementById('productName');
-    const productSku = document.getElementById('productSku');
     const productDescription = document.getElementById('productDescription');
     const productPrice = document.getElementById('productPrice');
-    const productComparePrice = document.getElementById('productComparePrice');
-    const productStock = document.getElementById('productStock');
+    const productDiscountPrice = document.getElementById('productDiscountPrice');
+    const productDiscountPercentage = document.getElementById('productDiscountPercentage');
+    const productStockQuantity = document.getElementById('productStockQuantity');
+    const productSpecialOffer = document.getElementById('productSpecialOffer');
     const productStatus = document.getElementById('productStatus');
-    const productOffer = document.getElementById('productOffer');
     const productImage = document.getElementById('productImage');
     
     // Check if all required elements exist
-    if (!productName || !productPrice || !productStock) {
-        showToast('Form elements not found!', 'error');
+    if (!productName) {
+        showToast('Product name field not found!', 'error');
+        return;
+    }
+    if (!productPrice) {
+        showToast('Price field not found!', 'error');
+        return;
+    }
+    if (!productStockQuantity) {
+        showToast('Stock quantity field not found!', 'error');
+        return;
+    }
+    
+    // Validate required fields
+    if (!productName.value.trim()) {
+        showToast('Product name is required!', 'error');
+        return;
+    }
+    if (!productPrice.value) {
+        showToast('Price is required!', 'error');
+        return;
+    }
+    if (!productStockQuantity.value && productStockQuantity.value !== '0') {
+        showToast('Stock quantity is required!', 'error');
         return;
     }
     
     const formData = new FormData();
     formData.append('name', productName.value.trim());
-    formData.append('sku', productSku ? productSku.value.trim() : '');
     formData.append('description', productDescription ? productDescription.value.trim() : '');
     formData.append('price', productPrice.value);
-    formData.append('compare_price', productComparePrice ? productComparePrice.value || '' : '');
-    formData.append('stock', productStock.value);
+    formData.append('discount_price', productDiscountPrice ? productDiscountPrice.value || '' : '');
+    formData.append('discount_percentage', productDiscountPercentage ? productDiscountPercentage.value || '' : '');
+    formData.append('stock_quantity', productStockQuantity.value);
+    formData.append('special_offer', productSpecialOffer ? productSpecialOffer.value.trim() : '');
     formData.append('is_active', productStatus ? productStatus.value === 'true' : true);
-    formData.append('active_offer', productOffer ? productOffer.value.trim() : '');
     
     if (productImage && productImage.files[0]) {
         formData.append('image', productImage.files[0]);
+        console.log('📸 Image file added:', productImage.files[0].name);
     }
     
     const csrfToken = getCookie('csrftoken');
     const isEdit = editId && editId.value;
     const url = isEdit ? `/api/products/${editId.value}/update/` : '/api/products/create/';
     const method = isEdit ? 'POST' : 'POST';
+    
+    console.log(`📤 Sending ${isEdit ? 'UPDATE' : 'CREATE'} request to:`, url);
     
     const btn = document.querySelector('.btn-save');
     const originalText = btn ? btn.innerHTML : 'Save';
@@ -559,8 +598,9 @@ function saveProduct() {
     })
     .then(response => response.json())
     .then(data => {
+        console.log('📦 Response:', data);
         if (data.status === 'success') {
-            showToast(isEdit ? 'Product updated successfully!' : 'Product added successfully!', 'success');
+            showToast(isEdit ? '✅ Product updated successfully!' : '✅ Product added successfully!', 'success');
             setTimeout(() => location.reload(), 1000);
         } else {
             showToast(data.message || 'Failed to save product', 'error');
@@ -571,7 +611,7 @@ function saveProduct() {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
+        console.error('❌ Error:', error);
         showToast('Error saving product. Please try again.', 'error');
         if (btn) {
             btn.innerHTML = originalText;

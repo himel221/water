@@ -6,7 +6,75 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/shop.css' %}" />
 <style>
-    /* Additional inline styles if needed */
+    /* ===== Discount Styles ===== */
+    .product-badge.discount {
+        background: #dc3545;
+        color: white;
+        animation: pulse 1.5s infinite;
+    }
+    .product-badge.sale {
+        background: #ff6b6b;
+        color: white;
+        animation: pulse 1.5s infinite;
+    }
+    .product-badge.offer {
+        background: #f39c12;
+        color: white;
+    }
+    
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    
+    .discount-badge {
+        display: inline-block;
+        background: #dc3545;
+        color: white;
+        padding: 2px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        margin-left: 8px;
+    }
+    
+    .product-special-offer {
+        background: #fff3cd;
+        color: #856404;
+        padding: 4px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin: 6px 0;
+        width: 100%;
+    }
+    
+    .product-special-offer i {
+        color: #f39c12;
+    }
+    
+    .product-price.discounted {
+        color: #dc3545;
+        font-weight: 700;
+        font-size: 20px;
+    }
+    
+    .original-price {
+        text-decoration: line-through;
+        color: #999;
+        font-size: 14px;
+        margin-left: 8px;
+    }
+    
+    .product-price-wrapper {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
 </style>
 {% endblock %}
 
@@ -62,19 +130,21 @@
             {% for product in products %}
             <div class="product-card" 
                  data-category="{{ product.category|default:'Uncategorized' }}" 
-                 data-price="{{ product.get_effective_price|default:product.price }}" 
+                 data-price="{% if product.is_on_sale %}{{ product.get_effective_price }}{% else %}{{ product.price }}{% endif %}" 
                  data-original-price="{{ product.price }}"
-                 data-discount="{{ product.get_discount_amount|default:0 }}"
+                 data-discount="{% if product.is_on_sale %}{{ product.get_discount_amount }}{% else %}0{% endif %}"
                  data-stock="{{ product.stock_quantity|default:0 }}">
                 
                 <!-- Badges -->
                 <div class="product-badges">
-                    {% if product.is_on_sale and product.get_discount_amount > 0 %}
-                        {% if product.discount_percentage %}
-                            <div class="product-badge discount">{{ product.discount_percentage }}% OFF</div>
-                        {% else %}
-                            <div class="product-badge sale">🔥 Sale</div>
-                        {% endif %}
+                    {% if product.is_on_sale %}
+                        <div class="product-badge discount">
+                            {% if product.discount_percentage %}
+                                {{ product.discount_percentage }}% OFF
+                            {% else %}
+                                🔥 Sale
+                            {% endif %}
+                        </div>
                     {% elif product.special_offer %}
                         <div class="product-badge offer">🎉 {{ product.special_offer|truncatechars:15 }}</div>
                     {% endif %}
@@ -88,7 +158,9 @@
                     {% if product.image %}
                         <img src="{{ product.image.url }}" alt="{{ product.name }}" />
                     {% else %}
-                        <img src="{% static 'images/default-product.jpg' %}" alt="{{ product.name }}" />
+                        <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:#f0f0f0;font-size:48px;color:#ccc;">
+                            💧
+                        </div>
                     {% endif %}
                     <div class="product-actions">
                         <button class="action-btn wishlist" data-product-id="{{ product.id }}">
@@ -139,14 +211,19 @@
                     </div>
                     {% endif %}
                     
-                    <!-- Price -->
+                    <!-- ========================================== -->
+                    <!-- PRICE DISPLAY - FIXED SECTION              -->
+                    <!-- ========================================== -->
                     <div class="product-meta">
                         <div class="product-price-wrapper">
-                            {% if product.is_on_sale and product.get_discount_amount > 0 %}
+                            {% if product.is_on_sale %}
+                                <!-- Discounted Price -->
                                 <span class="product-price discounted">
                                     ৳{{ product.get_effective_price|floatformat:2 }}
                                 </span>
+                                <!-- Original Price (strikethrough) -->
                                 <span class="original-price">৳{{ product.price|floatformat:2 }}</span>
+                                <!-- Discount Badge -->
                                 <span class="discount-badge">
                                     {% if product.discount_percentage %}
                                         Save {{ product.discount_percentage }}%
@@ -155,6 +232,7 @@
                                     {% endif %}
                                 </span>
                             {% else %}
+                                <!-- Regular Price -->
                                 <span class="product-price">৳{{ product.price|floatformat:2 }}</span>
                             {% endif %}
                         </div>
@@ -173,6 +251,7 @@
                             {% endif %}
                         </div>
                     </div>
+                    <!-- ========================================== -->
 
                     <!-- Benefits -->
                     {% if product.benefits %}
@@ -188,12 +267,12 @@
                     <button class="btn-add-cart" 
                             data-product-id="{{ product.id }}" 
                             data-product-name="{{ product.name }}" 
-                            data-product-price="{{ product.get_effective_price|default:product.price }}" 
-                            data-product-image="{% if product.image %}{{ product.image.url }}{% else %}{% static 'images/default-product.jpg' %}{% endif %}" 
+                            data-product-price="{% if product.is_on_sale %}{{ product.get_effective_price }}{% else %}{{ product.price }}{% endif %}" 
+                            data-product-image="{% if product.image %}{{ product.image.url }}{% else %}/static/images/default-product.jpg{% endif %}" 
                             data-stock="{{ product.stock_quantity }}" 
                             data-special-offer="{{ product.special_offer|default:'' }}"
                             data-original-price="{{ product.price }}"
-                            data-discount="{{ product.get_discount_amount|default:0 }}">
+                            data-discount="{% if product.is_on_sale %}{{ product.get_discount_amount }}{% else %}0{% endif %}">
                         <i class="fas fa-shopping-cart"></i> Add to Cart
                     </button>
                     {% else %}
@@ -266,6 +345,19 @@
     // Product data from Django
     window.productData = JSON.parse('{{ products_json|default:"[]"|escapejs }}');
     console.log('🛒 Product Data:', window.productData);
+    
+    // Debug: Check each product for discount
+    if (window.productData && window.productData.length > 0) {
+        console.log('📊 Product Discount Status:');
+        window.productData.forEach(function(product) {
+            var hasDiscount = product.is_on_sale || product.discount_price || product.discount_percentage;
+            console.log('  -', product.name + ':', 
+                        'is_on_sale=' + product.is_on_sale, 
+                        'price=' + product.price, 
+                        'original=' + product.original_price,
+                        'discount=' + (product.discount_price || product.discount_percentage || 'none'));
+        });
+    }
 </script>
 <script src="{% static 'js/shop.js' %}"></script>
 {% endblock %}

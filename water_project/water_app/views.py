@@ -1235,3 +1235,529 @@ def get_order_detail(request, order_id):
         return JsonResponse({'error': str(e)}, status=400)
     
 
+import json
+import io
+from datetime import datetime
+from django.http import HttpResponse, JsonResponse
+from django.shortcuts import render, get_object_or_404
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from django.contrib.admin.views.decorators import staff_member_required
+from django.core.files.storage import default_storage
+from decimal import Decimal
+
+from water_app.models import Order, OrderItem, Product
+
+
+# ============================================
+# PRODUCT MANAGEMENT VIEWS
+# ============================================
+
+@staff_member_required
+def admin_products(request):
+    """Admin Products Management Page"""
+    products = Product.objects.all().order_by('-created_at')
+    
+    context = {
+        'products': products,
+        'products_json': json.dumps([{
+            'id': p.id,
+            'name': p.name,
+            'description': p.description,
+            'price': float(p.price),
+            'discount_price': float(p.discount_price) if p.discount_price else None,
+            'discount_percentage': p.discount_percentage if p.discount_percentage else None,
+            'stock_quantity': p.stock_quantity if hasattr(p, 'stock_quantity') else 0,
+            'is_active': p.is_active,
+            'special_offer': p.special_offer if hasattr(p, 'special_offer') else None,
+            'image_url': p.image.url if p.image else None,
+            'created_at': p.created_at.isoformat() if p.created_at else None,
+        } for p in products]),
+        'total_products': products.count(),
+        'active_products': products.filter(is_active=True).count(),
+        'inactive_products': products.filter(is_active=False).count(),
+        'low_stock_products': products.filter(stock_quantity__lte=10, stock_quantity__gt=0).count() if hasattr(Product, 'stock_quantity') else 0,
+        'total_orders': Order.objects.count(),
+        'total_customers': 0,
+    }
+    return render(request, 'admin_products.html', context)
+
+
+@staff_member_required
+def get_products(request):
+    """Get products as JSON"""
+    products = Product.objects.all().order_by('-created_at')
+    data = [{
+        'id': p.id,
+        'name': p.name,
+        'description': p.description,
+        'price': float(p.price),
+        'discount_price': float(p.discount_price) if p.discount_price else None,
+        'discount_percentage': p.discount_percentage if p.discount_percentage else None,
+        'stock_quantity': p.stock_quantity if hasattr(p, 'stock_quantity') else 0,
+        'is_active': p.is_active,
+        'special_offer': p.special_offer if hasattr(p, 'special_offer') else None,
+        'image_url': p.image.url if p.image else None,
+        'created_at': p.created_at.isoformat() if p.created_at else None,
+    } for p in products]
+    return JsonResponse(data, safe=False)
+
+
+@staff_member_required
+def get_product_detail(request, product_id):
+    """Get single product detail as JSON"""
+    try:
+        product = get_object_or_404(Product, id=product_id)
+        data = {
+            'id': product.id,
+            'name': product.name,
+            'description': product.description,
+            'price': float(product.price),
+            'discount_price': float(product.discount_price) if product.discount_price else None,
+            'discount_percentage': product.discount_percentage if product.discount_percentage else None,
+            'stock_quantity': product.stock_quantity if hasattr(product, 'stock_quantity') else 0,
+            'is_active': product.is_active,
+            'special_offer': product.special_offer if hasattr(product, 'special_offer') else None,
+            'image_url': product.image.url if product.image else None,
+            'created_at': product.created_at.isoformat() if product.created_at else None,
+        }
+        return JsonResponse(data)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@csrf_exempt
+@staff_member_required
+def create_product(request):
+    """Create a new product"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        # Get form data
+        name = request.POST.get('name', '').strip()
+        description = request.POST.get('description', '').strip()
+        price = request.POST.get('price')
+        discount_price = request.POST.get('discount_price', '').strip()
+        discount_percentage = request.POST.get('discount_percentage', '').strip()
+        stock_quantity = request.POST.get('stock_quantity', 0)
+        is_active = request.POST.get('is_active', 'true') == 'true'
+        special_offer = request.POST.get('special_offer', '').strip()
+        
+        # Validate required fields
+        if not name:
+            return JsonResponse({'status': 'error', 'message': 'Product name is required'}, status=400)
+        if not price:
+            return JsonResponse({'status': 'error', 'message': 'Price is required'}, status=400)
+        
+        try:
+            price = float(price)
+            if price < 0:
+                return JsonResponse({'status': 'error', 'message': 'Price cannot be negative'}, status=400)
+        except ValueError:
+            return JsonResponse({'status': 'error', 'message': 'Invalid price format'}, status=400)
+        
+        # Validate discount price - handle empty string properly
+        discount_price_value = None
+        if discount_price and discount_price != '':
+            try:
+                discount_price_value = float(discount_price)
+                if discount_price_value < 0:
+                    return JsonResponse({'status': 'error', 'message': 'Discount price cannot be negative'}, status=400)
+            except ValueError:
+                return JsonResponse({'status': 'error', 'message': 'Invalid discount price format'}, status=400)
+        
+        # Validate discount percentage - handle empty string properly
+        discount_percentage_value = None
+        if discount_percentage and discount_percentage != '':
+            try:
+                discount_percentage_value = int(discount_percentage)
+                if discount_percentage_value < 0 or discount_percentage_value > 100:
+                    return JsonResponse({'status': 'error', 'message': 'Discount percentage must be between 0 and 100'}, status=400)
+            except ValueError:
+                return JsonResponse({'status': 'error', 'message': 'Invalid discount percentage format'}, status=400)
+        
+        try:
+            stock_quantity = int(stock_quantity)
+            if stock_quantity < 0:
+                return JsonResponse({'status': 'error', 'message': 'Stock cannot be negative'}, status=400)
+        except ValueError:
+            stock_quantity = 0
+        
+        # Check if product has discount
+        is_on_sale = False
+        if (discount_price_value is not None and discount_price_value > 0 and discount_price_value < price) or \
+           (discount_percentage_value is not None and discount_percentage_value > 0):
+            is_on_sale = True
+        
+        # Create product
+        product = Product(
+            name=name,
+            description=description,
+            price=price,
+            discount_price=discount_price_value,
+            discount_percentage=discount_percentage_value,
+            stock_quantity=stock_quantity,
+            is_active=is_active,
+            special_offer=special_offer if special_offer else None,
+            is_on_sale=is_on_sale,  # 👈 Added this
+        )
+        
+        # Handle image upload
+        if 'image' in request.FILES:
+            image_file = request.FILES['image']
+            # Validate file type
+            if image_file.content_type not in ['image/jpeg', 'image/png', 'image/gif', 'image/webp']:
+                return JsonResponse({'status': 'error', 'message': 'Invalid image format. Only JPEG, PNG, GIF, WEBP allowed.'}, status=400)
+            # Validate file size (2MB)
+            if image_file.size > 2 * 1024 * 1024:
+                return JsonResponse({'status': 'error', 'message': 'Image size must be less than 2MB'}, status=400)
+            
+            product.image = image_file
+        
+        product.save()
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Product created successfully',
+            'product_id': product.id
+        })
+        
+    except Exception as e:
+        print(f"Error creating product: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
+@csrf_exempt
+@staff_member_required
+def update_product(request, product_id):
+    """Update an existing product"""
+    if request.method not in ['PUT', 'POST']:
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        product = get_object_or_404(Product, id=product_id)
+        
+        # Get form data
+        name = request.POST.get('name', '').strip()
+        description = request.POST.get('description', '').strip()
+        price = request.POST.get('price')
+        discount_price = request.POST.get('discount_price', '').strip()
+        discount_percentage = request.POST.get('discount_percentage', '').strip()
+        stock_quantity = request.POST.get('stock_quantity', 0)
+        is_active = request.POST.get('is_active', 'true') == 'true'
+        special_offer = request.POST.get('special_offer', '').strip()
+        
+        # Validate required fields
+        if not name:
+            return JsonResponse({'status': 'error', 'message': 'Product name is required'}, status=400)
+        if not price:
+            return JsonResponse({'status': 'error', 'message': 'Price is required'}, status=400)
+        
+        try:
+            price = float(price)
+            if price < 0:
+                return JsonResponse({'status': 'error', 'message': 'Price cannot be negative'}, status=400)
+        except ValueError:
+            return JsonResponse({'status': 'error', 'message': 'Invalid price format'}, status=400)
+        
+        # Validate discount price - handle empty string properly
+        discount_price_value = None
+        if discount_price and discount_price != '':
+            try:
+                discount_price_value = float(discount_price)
+                if discount_price_value < 0:
+                    return JsonResponse({'status': 'error', 'message': 'Discount price cannot be negative'}, status=400)
+            except ValueError:
+                return JsonResponse({'status': 'error', 'message': 'Invalid discount price format'}, status=400)
+        
+        # Validate discount percentage - handle empty string properly
+        discount_percentage_value = None
+        if discount_percentage and discount_percentage != '':
+            try:
+                discount_percentage_value = int(discount_percentage)
+                if discount_percentage_value < 0 or discount_percentage_value > 100:
+                    return JsonResponse({'status': 'error', 'message': 'Discount percentage must be between 0 and 100'}, status=400)
+            except ValueError:
+                return JsonResponse({'status': 'error', 'message': 'Invalid discount percentage format'}, status=400)
+        
+        try:
+            stock_quantity = int(stock_quantity)
+            if stock_quantity < 0:
+                return JsonResponse({'status': 'error', 'message': 'Stock cannot be negative'}, status=400)
+        except ValueError:
+            stock_quantity = 0
+        
+        # Check if product has discount
+        is_on_sale = False
+        if (discount_price_value is not None and discount_price_value > 0 and discount_price_value < price) or \
+           (discount_percentage_value is not None and discount_percentage_value > 0):
+            is_on_sale = True
+        
+        # Update product
+        product.name = name
+        product.description = description
+        product.price = price
+        product.discount_price = discount_price_value
+        product.discount_percentage = discount_percentage_value
+        product.stock_quantity = stock_quantity
+        product.is_active = is_active
+        product.special_offer = special_offer if special_offer else None
+        product.is_on_sale = is_on_sale  # 👈 Added this
+        
+        # Handle image upload
+        if 'image' in request.FILES:
+            # Delete old image if exists
+            if product.image:
+                try:
+                    default_storage.delete(product.image.path)
+                except:
+                    pass
+            
+            image_file = request.FILES['image']
+            # Validate file type
+            if image_file.content_type not in ['image/jpeg', 'image/png', 'image/gif', 'image/webp']:
+                return JsonResponse({'status': 'error', 'message': 'Invalid image format. Only JPEG, PNG, GIF, WEBP allowed.'}, status=400)
+            # Validate file size (2MB)
+            if image_file.size > 2 * 1024 * 1024:
+                return JsonResponse({'status': 'error', 'message': 'Image size must be less than 2MB'}, status=400)
+            
+            product.image = image_file
+        elif 'remove_image' in request.POST and request.POST.get('remove_image') == 'true':
+            # Remove image
+            if product.image:
+                try:
+                    default_storage.delete(product.image.path)
+                except:
+                    pass
+                product.image = None
+        
+        product.save()
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Product updated successfully',
+            'product_id': product.id
+        })
+        
+    except Exception as e:
+        print(f"Error updating product: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
+@csrf_exempt
+@staff_member_required
+def delete_product(request, product_id):
+    """Delete a product"""
+    if request.method != 'DELETE':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        product = get_object_or_404(Product, id=product_id)
+        
+        # Delete image if exists
+        if product.image:
+            try:
+                default_storage.delete(product.image.path)
+            except:
+                pass
+        
+        product.delete()
+        return JsonResponse({'status': 'success', 'message': 'Product deleted successfully'})
+        
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
+@csrf_exempt
+@staff_member_required
+def toggle_product_status(request, product_id):
+    """Toggle product active status"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        product = get_object_or_404(Product, id=product_id)
+        data = json.loads(request.body)
+        is_active = data.get('is_active', not product.is_active)
+        
+        product.is_active = is_active
+        product.save()
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': f'Product {"activated" if is_active else "deactivated"} successfully',
+            'is_active': is_active
+        })
+        
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
+@staff_member_required
+def export_products_excel(request):
+    """Export products as Excel file"""
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    except ImportError:
+        return HttpResponse("⚠️ openpyxl not installed. Please install: pip install openpyxl", status=500)
+    
+    products = Product.objects.all().order_by('-created_at')
+    
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Products Report"
+    
+    # Styles
+    header_font = Font(name='Arial', size=10, bold=True, color='FFFFFF')
+    header_fill = PatternFill(start_color='1a5276', end_color='1a5276', fill_type='solid')
+    header_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    border = Border(
+        left=Side(style='thin', color='000000'),
+        right=Side(style='thin', color='000000'),
+        top=Side(style='thin', color='000000'),
+        bottom=Side(style='thin', color='000000')
+    )
+    
+    # Title
+    ws.merge_cells('A1:J1')
+    title_cell = ws['A1']
+    title_cell.value = "📦 Aquanimity SuperWater - Products Report"
+    title_cell.font = Font(name='Arial', size=18, bold=True, color='1a5276')
+    title_cell.alignment = Alignment(horizontal='center', vertical='center')
+    
+    ws.merge_cells('A2:J2')
+    subtitle_cell = ws['A2']
+    subtitle_cell.value = f"Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')} | Total Products: {products.count()}"
+    subtitle_cell.font = Font(name='Arial', size=10, color='666666')
+    subtitle_cell.alignment = Alignment(horizontal='center', vertical='center')
+    
+    # Headers
+    headers = ['Sl No', 'Product Name', 'Description', 'Price', 'Discount Price', 'Discount %', 'Stock', 'Status', 'Special Offer', 'Created At']
+    
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=4, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_alignment
+        cell.border = border
+    
+    # Data
+    row_num = 5
+    for idx, product in enumerate(products, 1):
+        row_data = [
+            idx,
+            product.name,
+            product.description[:50] + ('...' if product.description and len(product.description) > 50 else '') or '-',
+            f"৳{float(product.price):.2f}",
+            f"৳{float(product.discount_price):.2f}" if product.discount_price else '-',
+            f"{product.discount_percentage}%" if product.discount_percentage else '-',
+            product.stock_quantity if hasattr(product, 'stock_quantity') else 0,
+            'Active' if product.is_active else 'Inactive',
+            product.special_offer if hasattr(product, 'special_offer') and product.special_offer else '-',
+            product.created_at.strftime('%Y-%m-%d %H:%M') if product.created_at else '-'
+        ]
+        
+        for col, value in enumerate(row_data, 1):
+            cell = ws.cell(row=row_num, column=col, value=value)
+            cell.alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+            cell.border = border
+        
+        row_num += 1
+    
+    # Column widths
+    widths = {'A': 6, 'B': 30, 'C': 35, 'D': 12, 'E': 14, 'F': 10, 'G': 10, 'H': 10, 'I': 25, 'J': 18}
+    for col, width in widths.items():
+        ws.column_dimensions[col].width = width
+    
+    ws.freeze_panes = 'A5'
+    
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    filename = f'products_report_{datetime.now().strftime("%Y%m%d_%H%M")}.xlsx'
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    wb.save(response)
+    return response
+
+
+@staff_member_required
+def export_products_pdf(request):
+    """Export products as PDF file"""
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import landscape, A4
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import inch
+        from reportlab.lib.enums import TA_CENTER
+    except ImportError:
+        return HttpResponse("⚠️ ReportLab not installed. Please install: pip install reportlab", status=500)
+    
+    products = Product.objects.all().order_by('-created_at')
+    
+    response = HttpResponse(content_type='application/pdf')
+    filename = f'products_report_{datetime.now().strftime("%Y%m%d_%H%M")}.pdf'
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+    
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontSize=18, textColor=colors.HexColor('#1a5276'), alignment=TA_CENTER, spaceAfter=12, fontName='Helvetica-Bold')
+    subtitle_style = ParagraphStyle('SubtitleStyle', parent=styles['Normal'], fontSize=10, textColor=colors.HexColor('#666666'), alignment=TA_CENTER, spaceAfter=16)
+    
+    story = []
+    story.append(Paragraph("📦 Aquanimity SuperWater - Products Report", title_style))
+    story.append(Paragraph(f"Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", subtitle_style))
+    story.append(Paragraph(f"Total Products: {products.count()}", subtitle_style))
+    story.append(Spacer(1, 0.2*inch))
+    
+    # Table
+    table_data = [['Sl', 'Product Name', 'Price', 'Discount Price', 'Discount %', 'Stock', 'Status']]
+    for idx, product in enumerate(products[:100], 1):
+        table_data.append([
+            str(idx),
+            product.name[:25] + ('...' if len(product.name) > 25 else ''),
+            f"৳{float(product.price):.2f}",
+            f"৳{float(product.discount_price):.2f}" if product.discount_price else '-',
+            f"{product.discount_percentage}%" if product.discount_percentage else '-',
+            str(product.stock_quantity if hasattr(product, 'stock_quantity') else 0),
+            'Active' if product.is_active else 'Inactive'
+        ])
+    
+    if products.count() > 100:
+        table_data.append(['...', f'... and {products.count() - 100} more products', '', '', '', '', ''])
+    
+    table = Table(table_data, colWidths=[0.4*inch, 2.0*inch, 0.8*inch, 0.9*inch, 0.7*inch, 0.6*inch, 0.7*inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a5276')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f8f9fa')),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#ddd')),
+        ('FONTSIZE', (0, 1), (-1, -1), 7),
+        ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+        ('ALIGN', (5, 1), (5, -1), 'CENTER'),
+        ('ALIGN', (2, 1), (2, -1), 'RIGHT'),
+        ('PADDING', (0, 0), (-1, -1), 3),
+    ]))
+    
+    story.append(table)
+    story.append(Spacer(1, 0.3*inch))
+    
+    # Footer
+    footer_style = ParagraphStyle('FooterStyle', parent=styles['Normal'], fontSize=9, textColor=colors.HexColor('#999999'), alignment=TA_CENTER)
+    story.append(Paragraph("© 2026 Aquanimity Super Water. All rights reserved.", footer_style))
+    
+    doc.build(story)
+    buffer.seek(0)
+    response.write(buffer.getvalue())
+    return response
