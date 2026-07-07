@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django.db import models
 from django.contrib.auth.models import User
 import re
@@ -43,7 +44,27 @@ class Product(models.Model):
     
     def is_in_stock(self):
         return self.stock_quantity > 0
-    
+
+    def get_effective_price(self):
+        """Return the effective user-visible price after applying discounts."""
+        if not self.is_on_sale:
+            return self.price
+
+        if self.discount_price is not None:
+            return self.discount_price
+
+        discount_percentage = self.discount_percentage or 0
+        if discount_percentage > 0:
+            return self.price - (self.price * Decimal(discount_percentage) / Decimal('100'))
+
+        return self.price
+
+    def get_discount_amount(self):
+        """Return the absolute discount amount for the product."""
+        if not self.is_on_sale:
+            return Decimal('0.00')
+        return self.price - self.get_effective_price()
+
     @property
     def is_eligible_for_offer(self):
         """Check if product is eligible for special offer"""

@@ -1,10 +1,23 @@
 import json
+from decimal import Decimal
 from django.test import TestCase
 from django.urls import reverse
-from .models import DistrictDeliveryCharge
+from .models import DistrictDeliveryCharge, Product
 
 
 class CheckoutTests(TestCase):
+    def test_product_percentage_discount_uses_effective_price(self):
+        product = Product.objects.create(
+            name='Filter',
+            description='Test product',
+            price=Decimal('100.00'),
+            discount_percentage=20,
+            is_on_sale=True,
+        )
+
+        self.assertEqual(product.get_effective_price(), Decimal('80.00'))
+        self.assertEqual(product.get_discount_amount(), Decimal('20.00'))
+
     def test_create_order_uses_total_from_checkout_payload(self):
         DistrictDeliveryCharge.objects.create(
             district='dhaka',

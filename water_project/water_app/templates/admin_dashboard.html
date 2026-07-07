@@ -11,84 +11,107 @@
 {% endblock %}
 
 {% block content %}
-<div class="admin-dashboard">
-    <!-- Top Navbar -->
-    <nav class="admin-navbar">
-        <div class="navbar-left">
-            <button class="sidebar-toggle" id="sidebarToggle">
-                <i class="fas fa-bars"></i>
-            </button>
-            <span class="brand">Superwater</span>
-        </div>
-        <div class="navbar-right">
-            <div class="notification-icon">
-                <i class="fas fa-bell"></i>
-                <span class="badge">3</span>
-            </div>
-            <div class="admin-profile">
-                <img src="{% static 'images/admin-avatar.png' %}" alt="Admin" class="profile-img" />
-                <span class="admin-name">Admin</span>
-                <i class="fas fa-chevron-down"></i>
-            </div>
-        </div>
-    </nav>
+<div class="admin-dashboard-page">
+    <!-- Sidebar Overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
     <!-- Sidebar -->
-    <div class="sidebar" id="sidebar">
+    <div class="admin-sidebar" id="adminSidebar">
         <div class="sidebar-header">
-            <div class="logo">
+            <div class="sidebar-logo">
                 <i class="fas fa-droplet"></i>
                 <span>Superwater</span>
             </div>
         </div>
         <div class="sidebar-menu">
-            <a href="{% url 'admin_dashboard' %}" class="menu-item {% if active_page == 'admin_dashboard' %}active{% endif %}">
-                <i class="fas fa-th-large"></i>
-                <span>Dashboard</span>
+            <a href="{% url 'admin_dashboard' %}">
+                <div class="menu-item active">
+                    <i class="fas fa-th-large"></i>
+                    <span>Dashboard</span>
+                </div>
             </a>
-            <!-- ✅ Orders - এখানে ক্লিক করলে Order Page এ যাবে -->
-            <a href="{% url 'admin_orders' %}" class="menu-item {% if active_page == 'admin_orders' %}active{% endif %}">
-                <i class="fas fa-shopping-bag"></i>
-                <span>Orders</span>
-                <span class="badge">{{ total_orders|default:0 }}</span>
+            <a href="{% url 'admin_orders' %}">
+                <div class="menu-item">
+                    <i class="fas fa-shopping-bag"></i>
+                    <span>Orders</span>
+                    <span class="badge">{{ total_orders|default:0 }}</span>
+                </div>
             </a>
-            <a href="#" class="menu-item">
-                <i class="fas fa-box"></i>
-                <span>Products</span>
-                <span class="badge">{{ total_products|default:0 }}</span>
+            <a href="#">
+                <div class="menu-item">
+                    <i class="fas fa-box"></i>
+                    <span>Products</span>
+                    <span class="badge">{{ total_products|default:0 }}</span>
+                </div>
             </a>
-            <a href="#" class="menu-item">
-                <i class="fas fa-users"></i>
-                <span>Customers</span>
-                <span class="badge">{{ total_customers|default:0 }}</span>
+            <a href="#">
+                <div class="menu-item">
+                    <i class="fas fa-users"></i>
+                    <span>Customers</span>
+                    <span class="badge">{{ total_customers|default:0 }}</span>
+                </div>
             </a>
-            <a href="#" class="menu-item">
-                <i class="fas fa-truck"></i>
-                <span>Delivery</span>
+            <a href="#">
+                <div class="menu-item">
+                    <i class="fas fa-truck"></i>
+                    <span>Delivery</span>
+                </div>
             </a>
-            <a href="#" class="menu-item">
-                <i class="fas fa-tags"></i>
-                <span>Offers</span>
+            <a href="#">
+                <div class="menu-item">
+                    <i class="fas fa-tags"></i>
+                    <span>Offers</span>
+                </div>
             </a>
-            <a href="#" class="menu-item">
-                <i class="fas fa-chart-line"></i>
-                <span>Analytics</span>
+            <a href="#">
+                <div class="menu-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Analytics</span>
+                </div>
             </a>
-            <a href="#" class="menu-item">
-                <i class="fas fa-cog"></i>
-                <span>Settings</span>
+            <a href="#">
+                <div class="menu-item">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </div>
             </a>
         </div>
         <div class="sidebar-footer">
-            <a href="{% url 'home' %}" class="menu-item">
-                <i class="fas fa-sign-out-alt"></i>
-                <span>Logout</span>
+            <a href="{% url 'home' %}">
+                <div class="menu-item">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </div>
             </a>
         </div>
     </div>
 
     <!-- Main Content -->
     <div class="main-content" id="mainContent">
+        <!-- Top Navbar -->
+        <nav class="admin-top-navbar">
+            <div class="navbar-left">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="brand">
+                    <i class="fas fa-droplet"></i>
+                    <span>Superwater</span>
+                </div>
+            </div>
+            <div class="navbar-right">
+                <div class="notification-icon">
+                    <i class="fas fa-bell"></i>
+                    <span class="badge">3</span>
+                </div>
+                <div class="admin-profile">
+                    <div class="profile-img">A</div>
+                    <span class="admin-name">Admin</span>
+                    <i class="fas fa-chevron-down" style="font-size: 12px; color: #999;"></i>
+                </div>
+            </div>
+        </nav>
+
         <!-- Welcome Section -->
         <div class="welcome-section">
             <div class="welcome-text">
@@ -301,6 +324,24 @@
         }
     });
 
+    // ===== Sidebar Toggle =====
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebar = document.getElementById('adminSidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const mainContent = document.getElementById('mainContent');
+
+    sidebarToggle.addEventListener('click', function() {
+        sidebar.classList.toggle('open');
+        overlay.classList.toggle('active');
+        mainContent.classList.toggle('sidebar-open');
+    });
+
+    overlay.addEventListener('click', function() {
+        sidebar.classList.remove('open');
+        overlay.classList.remove('active');
+        mainContent.classList.remove('sidebar-open');
+    });
+
     // ===== Date Time =====
     function updateDateTime() {
         const now = new Date();
@@ -313,15 +354,12 @@
             minute: '2-digit',
             second: '2-digit'
         };
-        document.getElementById('currentDateTime').textContent = now.toLocaleDateString('en-US', options);
+        const dateEl = document.getElementById('currentDateTime');
+        if (dateEl) {
+            dateEl.textContent = now.toLocaleDateString('en-US', options);
+        }
     }
     updateDateTime();
     setInterval(updateDateTime, 1000);
-
-    // ===== Sidebar Toggle =====
-    document.getElementById('sidebarToggle').addEventListener('click', function() {
-        document.getElementById('sidebar').classList.toggle('collapsed');
-        document.getElementById('mainContent').classList.toggle('expanded');
-    });
 </script>
 {% endblock %}

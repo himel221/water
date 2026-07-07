@@ -220,9 +220,10 @@ class OrderAdmin(admin.ModelAdmin):
     list_display = [
         'order_id', 
         'customer_name', 
+        'customer_phone',  # ✅ Phone Number যোগ করা হয়েছে
         'customer_district', 
+        'customer_address_short',  # ✅ Address Short
         'get_total_items',
-        'get_product_names',
         'total_amount_display',
         'total_savings_display',
         'total_discount_display',
@@ -231,8 +232,8 @@ class OrderAdmin(admin.ModelAdmin):
         'status', 
         'created_at'
     ]
-    list_filter = ['status', 'payment_status', 'created_at']
-    search_fields = ['order_id', 'customer_name', 'customer_email', 'customer_phone', 'customer_district']
+    list_filter = ['status', 'payment_status', 'created_at', 'customer_district']
+    search_fields = ['order_id', 'customer_name', 'customer_email', 'customer_phone', 'customer_address', 'customer_district']
     readonly_fields = ['order_id', 'created_at', 'updated_at']
     list_editable = ['status']
     
@@ -247,7 +248,7 @@ class OrderAdmin(admin.ModelAdmin):
             'fields': ('delivery_zone', 'delivery_charge')
         }),
         ('Order Summary', {
-            'fields': ('subtotal', 'total_savings', 'total_amount'),
+            'fields': ('subtotal', 'total_savings', 'total_discount', 'total_amount'),
             'classes': ('wide',)
         }),
         ('Products & Discounts', {
@@ -267,6 +268,16 @@ class OrderAdmin(admin.ModelAdmin):
     def get_total_items(self, obj):
         return obj.get_total_items()
     get_total_items.short_description = 'Total Items'
+    
+    def customer_address_short(self, obj):
+        """Show short version of customer address"""
+        if obj.customer_address:
+            address = obj.customer_address[:50]
+            if len(obj.customer_address) > 50:
+                address += '...'
+            return address
+        return '-'
+    customer_address_short.short_description = 'Address'
     
     def get_product_names(self, obj):
         """Show product names with quantities and discounts"""
@@ -400,7 +411,7 @@ class OrderAdmin(admin.ModelAdmin):
     
     def get_readonly_fields(self, request, obj=None):
         if obj:
-            return ['order_id', 'created_at', 'updated_at', 'subtotal', 'total_savings', 'total_amount']
+            return ['order_id', 'created_at', 'updated_at', 'subtotal', 'total_savings', 'total_discount', 'total_amount']
         return self.readonly_fields
     
     actions = [
@@ -417,7 +428,7 @@ class OrderAdmin(admin.ModelAdmin):
         
         writer = csv.writer(response)
         writer.writerow([
-            'Order ID', 'Customer Name', 'Customer Email', 'Customer Phone',
+            'Order ID', 'Customer Name', 'Customer Phone', 'Customer Email',
             'Customer Address', 'District', 'Total Items', 'Products (Qty x Discount)', 
             'Subtotal', 'Total Savings', 'Total Discount', 'Total Amount', 
             'Delivery Charge', 'Payment Method', 'Status', 'Special Offers', 
@@ -443,8 +454,8 @@ class OrderAdmin(admin.ModelAdmin):
             writer.writerow([
                 order.order_id,
                 order.customer_name,
-                order.customer_email,
                 order.customer_phone or '',
+                order.customer_email,
                 order.customer_address,
                 order.customer_district or '',
                 order.get_total_items(),
@@ -547,56 +558,45 @@ class OrderAdmin(admin.ModelAdmin):
         story.append(summary_table)
         story.append(Spacer(1, 0.3*inch))
         
-        story.append(Paragraph("📋 Order Details", heading_style))
+        story.append(Paragraph("📋 Order Details with Customer Info", heading_style))
         
         table_data = [
-            ['Order ID', 'Customer', 'District', 'Items', 'Products', 'Total', 'Discount', 'Savings', 'Eligibility', 'Status']
+            ['Order ID', 'Customer', 'Phone', 'District', 'Address', 'Items', 'Total', 'Discount', 'Savings', 'Eligibility']
         ]
         
         for order in queryset:
-            products = []
-            for item in order.order_items.all():
-                discount_text = f"({item.discount_percentage}%)" if item.discount_percentage > 0 else ''
-                products.append(f"{item.product_name} x{item.quantity}{discount_text}")
-            products_text = ', '.join(products[:3]) + ('...' if len(products) > 3 else '')
-            
-            order_discount = 0
-            for item in order.order_items.all():
-                if item.original_price and item.original_price > item.product_price:
-                    order_discount += (float(item.original_price) - float(item.product_price)) * item.quantity
-            
             eligibility = '✅ Eligible' if order.is_eligible_for_offer() else '❌ Not Eligible'
+            address = order.customer_address[:30] + ('...' if len(order.customer_address) > 30 else '') if order.customer_address else '-'
             
             table_data.append([
                 order.order_id,
                 order.customer_name[:20] + ('...' if len(order.customer_name) > 20 else ''),
+                order.customer_phone or '-',
                 order.customer_district or '-',
+                address,
                 str(order.get_total_items()),
-                products_text,
                 f"৳ {float(order.total_amount):.2f}",
-                f"৳ {order_discount:.2f}",
+                f"৳ {float(order.total_discount or 0):.2f}",
                 f"৳ {float(order.total_savings):.2f}",
-                eligibility,
-                order.status.title(),
+                eligibility
             ])
         
-        table = Table(table_data, colWidths=[1.0*inch, 1.2*inch, 0.8*inch, 0.5*inch, 1.5*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.9*inch, 0.8*inch])
+        table = Table(table_data, colWidths=[0.9*inch, 1.2*inch, 0.8*inch, 0.8*inch, 1.2*inch, 0.4*inch, 0.7*inch, 0.7*inch, 0.7*inch, 0.8*inch])
         table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#007bff')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 8),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+            ('FONTSIZE', (0, 0), (-1, 0), 7),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 5),
             ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f8f9fa')),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#ddd')),
-            ('FONTSIZE', (0, 1), (-1, -1), 7),
-            ('ALIGN', (3, 1), (3, -1), 'CENTER'),
-            ('ALIGN', (5, 1), (5, -1), 'RIGHT'),
+            ('FONTSIZE', (0, 1), (-1, -1), 6),
+            ('ALIGN', (5, 1), (5, -1), 'CENTER'),
             ('ALIGN', (6, 1), (6, -1), 'RIGHT'),
             ('ALIGN', (7, 1), (7, -1), 'RIGHT'),
-            ('ALIGN', (8, 1), (8, -1), 'CENTER'),
+            ('ALIGN', (8, 1), (8, -1), 'RIGHT'),
             ('ALIGN', (9, 1), (9, -1), 'CENTER'),
-            ('PADDING', (0, 0), (-1, -1), 3),
+            ('PADDING', (0, 0), (-1, -1), 2),
         ]))
         
         story.append(table)

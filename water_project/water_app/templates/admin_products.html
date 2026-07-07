@@ -1,0 +1,751 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Admin - Products Management{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'css/admin_products.css' %}" />
+<style>
+    /* ===== Additional Styles ===== */
+    .product-image-thumb {
+        width: 50px;
+        height: 50px;
+        object-fit: cover;
+        border-radius: 8px;
+        border: 2px solid #e8ecf1;
+        transition: all 0.3s ease;
+    }
+    .product-image-thumb:hover {
+        transform: scale(1.5);
+        border-color: #007bff;
+        box-shadow: 0 4px 15px rgba(0,123,255,0.2);
+        z-index: 10;
+        position: relative;
+    }
+    
+    .product-name-cell {
+        font-weight: 600;
+        color: #2c3e50;
+        font-size: 14px;
+    }
+    .product-sku {
+        font-size: 11px;
+        color: #7f8c8d;
+        display: block;
+    }
+    
+    .price-current {
+        font-weight: 700;
+        color: #28a745;
+        font-size: 15px;
+    }
+    .price-original {
+        font-size: 12px;
+        color: #dc3545;
+        text-decoration: line-through;
+        display: block;
+    }
+    .price-savings {
+        font-size: 11px;
+        color: #28a745;
+        font-weight: 600;
+    }
+    
+    .stock-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    .stock-badge.in-stock {
+        background: #d4edda;
+        color: #155724;
+    }
+    .stock-badge.in-stock i {
+        color: #28a745;
+    }
+    .stock-badge.low-stock {
+        background: #fff3cd;
+        color: #856404;
+    }
+    .stock-badge.low-stock i {
+        color: #ffc107;
+    }
+    .stock-badge.out-of-stock {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    .stock-badge.out-of-stock i {
+        color: #dc3545;
+    }
+    
+    .offer-tag {
+        display: inline-block;
+        padding: 2px 10px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: 600;
+        background: #fff3cd;
+        color: #856404;
+        margin: 2px 0;
+    }
+    .offer-tag.active {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .action-buttons .btn-view {
+        background: #e8f4fd;
+        color: #3498db;
+    }
+    .action-buttons .btn-view:hover {
+        background: #3498db;
+        color: white;
+    }
+    .action-buttons .btn-edit {
+        background: #fff3cd;
+        color: #f39c12;
+    }
+    .action-buttons .btn-edit:hover {
+        background: #f39c12;
+        color: white;
+    }
+    .action-buttons .btn-delete {
+        background: #f8d7da;
+        color: #dc3545;
+    }
+    .action-buttons .btn-delete:hover {
+        background: #dc3545;
+        color: white;
+    }
+    .action-buttons .btn-toggle {
+        background: #e8f0fe;
+        color: #6c757d;
+    }
+    .action-buttons .btn-toggle:hover {
+        background: #6c757d;
+        color: white;
+    }
+    
+    /* ===== Export Buttons ===== */
+    .export-buttons {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+    }
+    .btn-export-pdf {
+        padding: 8px 20px;
+        background: #dc3545;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 13px;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .btn-export-pdf:hover {
+        background: #c82333;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+    }
+    .btn-export-excel {
+        padding: 8px 20px;
+        background: #28a745;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 13px;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .btn-export-excel:hover {
+        background: #218838;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+    }
+    .btn-export-all {
+        padding: 8px 20px;
+        background: #6c757d;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 13px;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .btn-export-all:hover {
+        background: #5a6268;
+        transform: translateY(-2px);
+    }
+    .btn-add-product {
+        padding: 8px 20px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 13px;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .btn-add-product:hover {
+        background: #0056b3;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+    }
+    .export-badge {
+        background: rgba(255,255,255,0.2);
+        padding: 2px 10px;
+        border-radius: 20px;
+        font-size: 11px;
+    }
+    
+    /* ===== Modal Styles ===== */
+    .modal-product-image {
+        width: 100%;
+        max-height: 300px;
+        object-fit: contain;
+        border-radius: 12px;
+        background: #f8f9fa;
+        padding: 10px;
+    }
+    .modal-detail-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 12px;
+    }
+    .modal-detail-item {
+        padding: 8px 12px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .modal-detail-item .label {
+        color: #7f8c8d;
+        font-weight: 500;
+        font-size: 13px;
+    }
+    .modal-detail-item .value {
+        color: #2c3e50;
+        font-weight: 600;
+        font-size: 14px;
+    }
+    .modal-detail-item .value.price {
+        color: #28a745;
+        font-size: 16px;
+    }
+    
+    /* ===== Quick Edit Modal ===== */
+    .quick-edit-form .form-group {
+        margin-bottom: 16px;
+    }
+    .quick-edit-form label {
+        font-weight: 600;
+        color: #2c3e50;
+        font-size: 13px;
+        margin-bottom: 4px;
+        display: block;
+    }
+    .quick-edit-form .form-control {
+        width: 100%;
+        border-radius: 8px;
+        border: 2px solid #e8ecf1;
+        padding: 10px 14px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        background: #fafafa;
+    }
+    .quick-edit-form .form-control:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+        background: white;
+    }
+    .quick-edit-form textarea.form-control {
+        resize: vertical;
+        min-height: 80px;
+    }
+    .quick-edit-form .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+    
+    /* ===== Toast Styles ===== */
+    .toast-notification {
+        animation: slideUp 0.3s ease;
+    }
+    @keyframes slideUp {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+    
+    .btn-cancel {
+        padding: 10px 24px;
+        background: #f0f2f5;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        color: #6c757d;
+        transition: all 0.3s ease;
+    }
+    .btn-cancel:hover {
+        background: #e0e4e8;
+    }
+    
+    .btn-save {
+        padding: 10px 24px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    .btn-save:hover {
+        background: #0056b3;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,123,255,0.3);
+    }
+    
+    /* ===== Responsive ===== */
+    @media (max-width: 768px) {
+        .export-buttons {
+            flex-wrap: wrap;
+        }
+        .export-buttons button {
+            flex: 1;
+            min-width: 100px;
+            justify-content: center;
+            font-size: 11px;
+            padding: 6px 12px;
+        }
+        .modal-detail-grid {
+            grid-template-columns: 1fr;
+        }
+        .quick-edit-form .form-row {
+            grid-template-columns: 1fr;
+        }
+        .product-image-thumb {
+            width: 40px;
+            height: 40px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-products-page">
+    <!-- Sidebar Overlay -->
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <!-- Sidebar -->
+    <div class="admin-sidebar" id="adminSidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo">
+                <i class="fas fa-droplet"></i>
+                <span>Superwater</span>
+            </div>
+        </div>
+        <div class="sidebar-menu">
+            <a href="{% url 'admin_dashboard' %}">
+                <div class="menu-item">
+                    <i class="fas fa-th-large"></i>
+                    <span>Dashboard</span>
+                </div>
+            </a>
+            <a href="{% url 'admin_orders' %}">
+                <div class="menu-item">
+                    <i class="fas fa-shopping-bag"></i>
+                    <span>Orders</span>
+                    <span class="badge">{{ total_orders|default:0 }}</span>
+                </div>
+            </a>
+            <a href="{% url 'admin_products' %}">
+                <div class="menu-item active">
+                    <i class="fas fa-box"></i>
+                    <span>Products</span>
+                    <span class="badge">{{ total_products|default:0 }}</span>
+                </div>
+            </a>
+            <a href="#">
+                <div class="menu-item">
+                    <i class="fas fa-users"></i>
+                    <span>Customers</span>
+                    <span class="badge">{{ total_customers|default:0 }}</span>
+                </div>
+            </a>
+            <a href="#">
+                <div class="menu-item">
+                    <i class="fas fa-truck"></i>
+                    <span>Delivery</span>
+                </div>
+            </a>
+            <a href="#">
+                <div class="menu-item">
+                    <i class="fas fa-tags"></i>
+                    <span>Offers</span>
+                </div>
+            </a>
+            <a href="#">
+                <div class="menu-item">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Analytics</span>
+                </div>
+            </a>
+            <a href="#">
+                <div class="menu-item">
+                    <i class="fas fa-cog"></i>
+                    <span>Settings</span>
+                </div>
+            </a>
+        </div>
+        <div class="sidebar-footer">
+            <a href="{% url 'home' %}">
+                <div class="menu-item">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Logout</span>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+        <!-- Top Navbar -->
+        <nav class="admin-top-navbar">
+            <div class="navbar-left">
+                <button class="sidebar-toggle" id="sidebarToggle">
+                    <i class="fas fa-bars"></i>
+                </button>
+                <div class="brand">
+                    <i class="fas fa-droplet"></i>
+                    <span>Superwater</span>
+                </div>
+            </div>
+            <div class="navbar-right">
+                <div class="notification-icon">
+                    <i class="fas fa-bell"></i>
+                    <span class="badge">3</span>
+                </div>
+                <div class="admin-profile">
+                    <div class="profile-img">A</div>
+                    <span class="admin-name">Admin</span>
+                    <i class="fas fa-chevron-down" style="font-size: 12px; color: #999;"></i>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Stats -->
+        <div class="stats-row">
+            <div class="stat-card">
+                <div class="stat-icon blue"><i class="fas fa-box"></i></div>
+                <div>
+                    <div class="stat-number">{{ total_products|default:0 }}</div>
+                    <div class="stat-label">Total Products</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
+                <div>
+                    <div class="stat-number">{{ active_products|default:0 }}</div>
+                    <div class="stat-label">Active</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon yellow"><i class="fas fa-times-circle"></i></div>
+                <div>
+                    <div class="stat-number">{{ inactive_products|default:0 }}</div>
+                    <div class="stat-label">Inactive</div>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon red"><i class="fas fa-exclamation-triangle"></i></div>
+                <div>
+                    <div class="stat-number">{{ low_stock_products|default:0 }}</div>
+                    <div class="stat-label">Low Stock</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter & Export Section -->
+        <div class="filter-section" style="background: linear-gradient(135deg, #f8f9fa, #e9ecef); border: 1px solid #dee2e6;">
+            <div class="filter-left">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Search products..." id="searchInput" />
+                </div>
+                <select class="filter-select" id="statusFilter">
+                    <option value="all">All Status</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                </select>
+                <select class="filter-select" id="stockFilter">
+                    <option value="all">All Stock</option>
+                    <option value="in-stock">In Stock</option>
+                    <option value="low-stock">Low Stock</option>
+                    <option value="out-of-stock">Out of Stock</option>
+                </select>
+            </div>
+            <div class="export-buttons">
+                <span style="font-weight: 600; color: #2c3e50; font-size: 14px; margin-right: 4px;">
+                    <i class="fas fa-plus-circle"></i> Actions:
+                </span>
+                <button class="btn-add-product" id="addProductBtn" title="Add new product">
+                    <i class="fas fa-plus"></i> Add Product
+                </button>
+                <button class="btn-export-excel" id="exportExcel" title="Export products as Excel">
+                    <i class="fas fa-file-excel"></i> Excel
+                </button>
+                <button class="btn-export-pdf" id="exportPdf" title="Export products as PDF">
+                    <i class="fas fa-file-pdf"></i> PDF
+                </button>
+                <button class="btn-export-all" id="refreshBtn" title="Refresh page">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+        </div>
+
+        <!-- Products Table -->
+        <div class="table-container">
+            <table class="products-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px;"><input type="checkbox" id="selectAll" /></th>
+                        <th style="width: 70px;">Image</th>
+                        <th>Product</th>
+                        <th>Price</th>
+                        <th>Stock</th>
+                        <th>Offer</th>
+                        <th>Status</th>
+                        <th>Created</th>
+                        <th style="width: 140px;">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="productsTableBody">
+                    {% for product in products %}
+                    <tr>
+                        <td><input type="checkbox" class="product-checkbox" data-product-id="{{ product.id }}" /></td>
+                        <td>
+                            {% if product.image %}
+                            <img src="{{ product.image.url }}" alt="{{ product.name }}" class="product-image-thumb" />
+                            {% else %}
+                            <div class="product-image-thumb" style="background: #f0f0f0; display: flex; align-items: center; justify-content: center; color: #ccc;">
+                                <i class="fas fa-image fa-2x"></i>
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="product-name-cell">{{ product.name }}</span>
+                            <span class="product-sku">SKU: {{ product.sku|default:"N/A" }}</span>
+                        </td>
+                        <td>
+                            <span class="price-current">৳{{ product.price|floatformat:2 }}</span>
+                            {% if product.compare_price and product.compare_price > product.price %}
+                            <span class="price-original">৳{{ product.compare_price|floatformat:2 }}</span>
+                            <span class="price-savings">Save {{ product.get_savings_percentage }}%</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if product.stock > 20 %}
+                            <span class="stock-badge in-stock"><i class="fas fa-check-circle"></i> {{ product.stock }} in stock</span>
+                            {% elif product.stock > 0 %}
+                            <span class="stock-badge low-stock"><i class="fas fa-exclamation-circle"></i> {{ product.stock }} left</span>
+                            {% else %}
+                            <span class="stock-badge out-of-stock"><i class="fas fa-times-circle"></i> Out of stock</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if product.has_active_offer %}
+                            <span class="offer-tag active">
+                                <i class="fas fa-gift"></i> {{ product.get_active_offer_display }}
+                            </span>
+                            {% else %}
+                            <span class="offer-tag" style="background: #f0f0f0; color: #999;">No offer</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="status-badge {% if product.is_active %}active{% else %}inactive{% endif %}">
+                                <i class="fas fa-circle"></i>
+                                {% if product.is_active %}Active{% else %}Inactive{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            <span style="display: block; font-weight: 500; font-size: 13px;">{{ product.created_at|date:"d M Y" }}</span>
+                            <span style="display: block; font-size: 11px; color: #b2bec3;">{{ product.created_at|date:"h:i A" }}</span>
+                        </td>
+                        <td>
+                            <div class="action-buttons">
+                                <button class="btn-view" data-product-id="{{ product.id }}" title="View Details">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button class="btn-edit" data-product-id="{{ product.id }}" title="Edit Product">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button class="btn-toggle" data-product-id="{{ product.id }}" title="Toggle Status">
+                                    <i class="fas {% if product.is_active %}fa-eye-slash{% else %}fa-eye{% endif %}"></i>
+                                </button>
+                                <button class="btn-delete" data-product-id="{{ product.id }}" title="Delete Product">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="no-products">
+                            <i class="fas fa-box-open"></i>
+                            <h3>No Products Found</h3>
+                            <p>Start adding products to your inventory!</p>
+                            <button class="btn-add-product" id="emptyAddBtn" style="margin-top: 12px;">
+                                <i class="fas fa-plus"></i> Add Your First Product
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        <div class="pagination-section">
+            <div class="pagination-info">
+                Showing <span id="startCount">1</span> to <span id="endCount">10</span> of <span id="totalCount">{{ products|length }}</span> products
+            </div>
+            <div class="pagination-buttons">
+                <button class="page-btn" id="prevPage"><i class="fas fa-chevron-left"></i></button>
+                <button class="page-btn active">1</button>
+                <button class="page-btn">2</button>
+                <button class="page-btn">3</button>
+                <button class="page-btn" id="nextPage"><i class="fas fa-chevron-right"></i></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ===== View Product Modal ===== -->
+<div class="modal-overlay" id="viewProductModal" style="display: none;">
+    <div class="modal-content" style="max-width: 700px;">
+        <div class="modal-header">
+            <h3><i class="fas fa-box"></i> Product Details</h3>
+            <button class="modal-close" id="closeViewModal"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body" id="productDetailBody">
+            <!-- Product details will be loaded here -->
+        </div>
+    </div>
+</div>
+
+<!-- ===== Add/Edit Product Modal ===== -->
+<div class="modal-overlay" id="productFormModal" style="display: none;">
+    <div class="modal-content" style="max-width: 650px; max-height: 90vh; overflow-y: auto;">
+        <div class="modal-header">
+            <h3 id="formModalTitle"><i class="fas fa-plus"></i> Add New Product</h3>
+            <button class="modal-close" id="closeFormModal"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <form id="productForm" class="quick-edit-form" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" id="editProductId" value="" />
+                
+                <div class="form-group">
+                    <label for="productName">Product Name <span style="color: red;">*</span></label>
+                    <input type="text" class="form-control" id="productName" placeholder="Enter product name" required />
+                </div>
+                
+                <div class="form-group">
+                    <label for="productSku">SKU (Stock Keeping Unit)</label>
+                    <input type="text" class="form-control" id="productSku" placeholder="Enter SKU" />
+                </div>
+                
+                <div class="form-group">
+                    <label for="productDescription">Description</label>
+                    <textarea class="form-control" id="productDescription" rows="3" placeholder="Enter product description"></textarea>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="productPrice">Price (৳) <span style="color: red;">*</span></label>
+                        <input type="number" class="form-control" id="productPrice" placeholder="0.00" step="0.01" min="0" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="productComparePrice">Compare Price (Optional)</label>
+                        <input type="number" class="form-control" id="productComparePrice" placeholder="0.00" step="0.01" min="0" />
+                    </div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="productStock">Stock Quantity <span style="color: red;">*</span></label>
+                        <input type="number" class="form-control" id="productStock" placeholder="0" min="0" required />
+                    </div>
+                    <div class="form-group">
+                        <label for="productStatus">Status</label>
+                        <select class="form-control" id="productStatus">
+                            <option value="true">Active</option>
+                            <option value="false">Inactive</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="productImage">Product Image</label>
+                    <input type="file" class="form-control" id="productImage" accept="image/*" />
+                    <small class="text-muted">Recommended: 500x500 pixels, Max 2MB</small>
+                    <div id="imagePreview" style="margin-top: 10px; display: none;">
+                        <img src="" alt="Preview" style="max-width: 150px; max-height: 150px; border-radius: 8px; border: 2px solid #e8ecf1;" />
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 16px; border-top: 2px solid #e8ecf1;">
+                    <button type="button" class="btn-cancel" id="cancelFormBtn">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn-save">
+                        <i class="fas fa-save"></i> Save Product
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Product Data from Django
+    const productData = JSON.parse('{{ products_json|default:"[]"|escapejs }}');
+    
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeProducts(productData);
+    });
+</script>
+<script src="{% static 'js/admin_products.js' %}"></script>
+{% endblock %}

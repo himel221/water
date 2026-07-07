@@ -5,10 +5,13 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/shop.css' %}" />
+<style>
+    /* Additional inline styles if needed */
+</style>
 {% endblock %}
 
 {% block content %}
-<!-- ===== Hero Section with Image ===== -->
+<!-- ===== Hero Section ===== -->
 <section class="shop-hero">
     <div class="hero-overlay"></div>
     <div class="hero-content">
@@ -41,7 +44,7 @@
                 <option value="default">Sort by: Default</option>
                 <option value="price-low">Price: Low to High</option>
                 <option value="price-high">Price: High to Low</option>
-                <option value="rating">Highest Rated</option>
+                <option value="discount">Biggest Discount</option>
             </select>
         </div>
     </div>
@@ -58,26 +61,29 @@
         {% if products %}
             {% for product in products %}
             <div class="product-card" 
-                 data-category="{{ product.category }}" 
-                 data-price="{% if product.is_on_sale and product.discount_price %}{{ product.discount_price }}{% else %}{{ product.price }}{% endif %}" 
-                 data-rating="{{ product.rating|default:4.5 }}" 
-                 data-stock="{{ product.stock_quantity|default:0 }}" 
-                 data-original-price="{{ product.price }}">
+                 data-category="{{ product.category|default:'Uncategorized' }}" 
+                 data-price="{{ product.get_effective_price|default:product.price }}" 
+                 data-original-price="{{ product.price }}"
+                 data-discount="{{ product.get_discount_amount|default:0 }}"
+                 data-stock="{{ product.stock_quantity|default:0 }}">
                 
-                <!-- ===== Badge ===== -->
+                <!-- Badges -->
                 <div class="product-badges">
-                    {% if product.is_on_sale and product.discount_price %}
+                    {% if product.is_on_sale and product.get_discount_amount > 0 %}
                         {% if product.discount_percentage %}
                             <div class="product-badge discount">{{ product.discount_percentage }}% OFF</div>
                         {% else %}
                             <div class="product-badge sale">🔥 Sale</div>
                         {% endif %}
                     {% elif product.special_offer %}
-                        <div class="product-badge offer">🎉 {{ product.special_offer }}</div>
+                        <div class="product-badge offer">🎉 {{ product.special_offer|truncatechars:15 }}</div>
+                    {% endif %}
+                    {% if not product.is_active %}
+                        <div class="product-badge" style="background:#6c757d;color:white;">Unavailable</div>
                     {% endif %}
                 </div>
 
-                <!-- ===== Product Image ===== -->
+                <!-- Product Image -->
                 <div class="product-image">
                     {% if product.image %}
                         <img src="{{ product.image.url }}" alt="{{ product.name }}" />
@@ -94,25 +100,29 @@
                     </div>
                 </div>
                 
-                <!-- ===== Product Info ===== -->
+                <!-- Product Info -->
                 <div class="product-info">
                     <!-- Rating -->
                     <div class="product-rating">
-                        {% with rating=product.rating|default:4.5|floatformat:"0"|add:"0" %}
-                            {% for i in "12345"|make_list %}
-                                {% if forloop.counter <= rating %}
-                                    <i class="fas fa-star"></i>
-                                {% elif forloop.counter <= rating|add:"1" and product.rating|floatformat:"1"|slice:"-1" >= "5" %}
-                                    <i class="fas fa-star-half-alt"></i>
-                                {% else %}
-                                    <i class="far fa-star"></i>
+                        {% with rating=product.rating|default:0|floatformat:"0"|add:"0" %}
+                            {% if rating > 0 %}
+                                {% for i in "12345"|make_list %}
+                                    {% if forloop.counter <= rating %}
+                                        <i class="fas fa-star"></i>
+                                    {% elif forloop.counter <= rating|add:"1" and product.rating|floatformat:"1"|slice:"-1" >= "5" %}
+                                        <i class="fas fa-star-half-alt"></i>
+                                    {% else %}
+                                        <i class="far fa-star"></i>
+                                    {% endif %}
+                                {% endfor %}
+                                <span>({{ product.rating }})</span>
+                                {% if product.reviews %}
+                                <span class="reviews-count">{{ product.reviews }} reviews</span>
                                 {% endif %}
-                            {% endfor %}
+                            {% else %}
+                                <span style="color:#999;font-size:12px;">No ratings yet</span>
+                            {% endif %}
                         {% endwith %}
-                        <span>({{ product.rating|default:4.5 }})</span>
-                        {% if product.reviews %}
-                        <span class="reviews-count">{{ product.reviews }} reviews</span>
-                        {% endif %}
                     </div>
                     
                     <!-- Product Name -->
@@ -121,7 +131,7 @@
                     <!-- Description -->
                     <p class="product-desc">{{ product.description|truncatechars:60|default:"Premium quality product" }}</p>
                     
-                    <!-- ===== Special Offer Display ===== -->
+                    <!-- Special Offer -->
                     {% if product.special_offer %}
                     <div class="product-special-offer">
                         <i class="fas fa-gift"></i>
@@ -129,29 +139,23 @@
                     </div>
                     {% endif %}
                     
-                    <!-- ===== Price Display with Discount ===== -->
+                    <!-- Price -->
                     <div class="product-meta">
                         <div class="product-price-wrapper">
-                            {% if product.is_on_sale and product.discount_price and product.discount_price < product.price %}
-                                <!-- Discounted Price -->
+                            {% if product.is_on_sale and product.get_discount_amount > 0 %}
                                 <span class="product-price discounted">
-                                    Tk{{ product.discount_price|floatformat:2 }}
+                                    ৳{{ product.get_effective_price|floatformat:2 }}
                                 </span>
-                                <!-- Original Price (Strikethrough) -->
-                                <span class="original-price">Tk{{ product.price|floatformat:2 }}</span>
-                                <!-- Discount Badge -->
+                                <span class="original-price">৳{{ product.price|floatformat:2 }}</span>
                                 <span class="discount-badge">
                                     {% if product.discount_percentage %}
                                         Save {{ product.discount_percentage }}%
                                     {% else %}
-                                        {% with savings=product.price|floatformat:2|add:"-"|add:product.discount_price|floatformat:2 %}
-                                            Save Tk{{ product.price|floatformat:2|add:"-"|add:product.discount_price|floatformat:2 }}
-                                        {% endwith %}
+                                        Save ৳{{ product.get_discount_amount|floatformat:2 }}
                                     {% endif %}
                                 </span>
                             {% else %}
-                                <!-- Regular Price -->
-                                <span class="product-price">Tk{{ product.price|floatformat:2 }}</span>
+                                <span class="product-price">৳{{ product.price|floatformat:2 }}</span>
                             {% endif %}
                         </div>
                         
@@ -180,20 +184,21 @@
                     {% endif %}
 
                     <!-- Add to Cart Button -->
-                    {% if product.stock_quantity and product.stock_quantity > 0 %}
+                    {% if product.stock_quantity and product.stock_quantity > 0 and product.is_active %}
                     <button class="btn-add-cart" 
                             data-product-id="{{ product.id }}" 
                             data-product-name="{{ product.name }}" 
-                            data-product-price="{% if product.is_on_sale and product.discount_price %}{{ product.discount_price }}{% else %}{{ product.price }}{% endif %}" 
+                            data-product-price="{{ product.get_effective_price|default:product.price }}" 
                             data-product-image="{% if product.image %}{{ product.image.url }}{% else %}{% static 'images/default-product.jpg' %}{% endif %}" 
                             data-stock="{{ product.stock_quantity }}" 
                             data-special-offer="{{ product.special_offer|default:'' }}"
-                            data-original-price="{{ product.price }}">
+                            data-original-price="{{ product.price }}"
+                            data-discount="{{ product.get_discount_amount|default:0 }}">
                         <i class="fas fa-shopping-cart"></i> Add to Cart
                     </button>
                     {% else %}
                     <button class="btn-add-cart disabled" disabled>
-                        <i class="fas fa-times"></i> Out of Stock
+                        <i class="fas fa-times"></i> {% if product.stock_quantity == 0 %}Out of Stock{% else %}Unavailable{% endif %}
                     </button>
                     {% endif %}
                 </div>
@@ -239,7 +244,7 @@
     <div class="cart-footer">
         <div class="cart-total">
             <span>Total:</span>
-            <span class="total-price" id="cartTotal">Tk0.00</span>
+            <span class="total-price" id="cartTotal">৳0.00</span>
         </div>
         <button class="btn-checkout" id="checkoutBtn">
             <i class="fas fa-lock"></i> Proceed to Checkout
@@ -257,211 +262,10 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/shop.js' %}"></script>
 <script>
     // Product data from Django
-    const productData = JSON.parse('{{ products_json|default:"[]"|escapejs }}');
-    
-    // Initialize shop with product data
-    document.addEventListener('DOMContentLoaded', function() {
-        if (typeof initializeShop === 'function') {
-            initializeShop(productData);
-        }
-        loadCart();
-        
-        // Debug: Log product data
-        console.log('Product Data:', productData);
-    });
-    
-    // ===== Cart Functions =====
-    
-    // Load cart from localStorage
-    function loadCart() {
-        var cart = JSON.parse(localStorage.getItem('cart')) || [];
-        updateCartUI(cart);
-    }
-    
-    // Add to cart
-    document.querySelectorAll('.btn-add-cart:not(.disabled)').forEach(function(button) {
-        button.addEventListener('click', function() {
-            var productId = this.dataset.productId;
-            var productName = this.dataset.productName;
-            var productPrice = parseFloat(this.dataset.productPrice);
-            var productImage = this.dataset.productImage;
-            var stock = parseInt(this.dataset.stock);
-            var specialOffer = this.dataset.specialOffer || '';
-            var originalPrice = parseFloat(this.dataset.originalPrice) || productPrice;
-            
-            addToCart(productId, productName, productPrice, productImage, stock, specialOffer, originalPrice);
-        });
-    });
-    
-    function addToCart(id, name, price, image, stock, specialOffer, originalPrice) {
-        var cart = JSON.parse(localStorage.getItem('cart')) || [];
-        
-        // Check if product already in cart
-        var existingItem = null;
-        for (var i = 0; i < cart.length; i++) {
-            if (cart[i].id === id) {
-                existingItem = cart[i];
-                break;
-            }
-        }
-        
-        if (existingItem) {
-            if (existingItem.quantity < stock) {
-                existingItem.quantity += 1;
-                showNotification(name + ' quantity updated!');
-            } else {
-                showNotification('Sorry, only ' + stock + ' items available!');
-                return;
-            }
-        } else {
-            cart.push({
-                id: id,
-                name: name,
-                price: price,
-                original_price: originalPrice,
-                image: image,
-                quantity: 1,
-                special_offer: specialOffer
-            });
-            showNotification(name + ' added to cart!');
-        }
-        
-        localStorage.setItem('cart', JSON.stringify(cart));
-        updateCartUI(cart);
-        
-        // Open cart sidebar
-        document.getElementById('cartSidebar').classList.add('open');
-    }
-    
-    // Update cart UI
-    function updateCartUI(cart) {
-        var cartItems = document.getElementById('cartItems');
-        var cartCount = document.getElementById('cartCount');
-        var cartTotal = document.getElementById('cartTotal');
-        
-        if (cart.length === 0) {
-            cartItems.innerHTML = '<div class="empty-cart-state"><i class="fas fa-shopping-bag"></i><p>Your cart is empty</p><span class="empty-sub">Start shopping to add items</span></div>';
-            cartCount.textContent = '0';
-            cartTotal.textContent = 'Tk0.00';
-            return;
-        }
-        
-        var html = '';
-        var total = 0;
-        var itemCount = 0;
-        
-        for (var i = 0; i < cart.length; i++) {
-            var item = cart[i];
-            var hasDiscount = item.original_price && item.original_price > item.price;
-            var itemTotal = item.price * item.quantity;
-            var originalTotal = item.original_price ? item.original_price * item.quantity : itemTotal;
-            total += itemTotal;
-            itemCount += item.quantity;
-            
-            html += '<div class="cart-item" data-index="' + i + '">';
-            html += '<div class="cart-item-image"><img src="' + item.image + '" alt="' + item.name + '" /></div>';
-            html += '<div class="cart-item-details">';
-            html += '<h4 class="cart-item-name">' + item.name + '</h4>';
-            html += '<div class="cart-item-price"><span class="current-price">Tk' + item.price.toFixed(2) + '</span>';
-            if (hasDiscount) {
-                html += '<span class="original-price">Tk' + item.original_price.toFixed(2) + '</span>';
-            }
-            html += '</div>';
-            if (item.special_offer) {
-                html += '<div class="cart-item-offer">🎉 ' + item.special_offer + '</div>';
-            }
-            html += '<div class="cart-item-quantity">';
-            html += '<button class="cart-qty-btn minus" data-index="' + i + '">-</button>';
-            html += '<span class="cart-qty">' + item.quantity + '</span>';
-            html += '<button class="cart-qty-btn plus" data-index="' + i + '">+</button>';
-            html += '<button class="cart-remove" data-index="' + i + '"><i class="fas fa-trash"></i></button>';
-            html += '</div></div>';
-            html += '<div class="cart-item-subtotal">';
-            if (hasDiscount) {
-                html += '<span class="item-original-total">Tk' + originalTotal.toFixed(2) + '</span>';
-            }
-            html += '<span class="item-total">Tk' + itemTotal.toFixed(2) + '</span>';
-            html += '</div></div>';
-        }
-        
-        cartItems.innerHTML = html;
-        cartCount.textContent = itemCount;
-        cartTotal.textContent = 'Tk' + total.toFixed(2);
-        
-        // Add event listeners to cart items
-        document.querySelectorAll('.cart-qty-btn.minus').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var index = parseInt(this.dataset.index);
-                updateCartQuantity(index, -1);
-            });
-        });
-        
-        document.querySelectorAll('.cart-qty-btn.plus').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var index = parseInt(this.dataset.index);
-                updateCartQuantity(index, 1);
-            });
-        });
-        
-        document.querySelectorAll('.cart-remove').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var index = parseInt(this.dataset.index);
-                removeFromCart(index);
-            });
-        });
-    }
-    
-    // Update cart quantity
-    function updateCartQuantity(index, change) {
-        var cart = JSON.parse(localStorage.getItem('cart')) || [];
-        if (cart[index]) {
-            var newQuantity = cart[index].quantity + change;
-            if (newQuantity > 0) {
-                cart[index].quantity = newQuantity;
-            } else {
-                cart.splice(index, 1);
-            }
-            localStorage.setItem('cart', JSON.stringify(cart));
-            updateCartUI(cart);
-        }
-    }
-    
-    // Remove from cart
-    function removeFromCart(index) {
-        var cart = JSON.parse(localStorage.getItem('cart')) || [];
-        cart.splice(index, 1);
-        localStorage.setItem('cart', JSON.stringify(cart));
-        updateCartUI(cart);
-        showNotification('Item removed from cart!');
-    }
-    
-    // Show notification
-    function showNotification(message) {
-        var notification = document.getElementById('cartNotification');
-        document.getElementById('notificationMessage').textContent = message;
-        notification.classList.add('show');
-        
-        setTimeout(function() {
-            notification.classList.remove('show');
-        }, 3000);
-    }
-    
-    // Close cart sidebar
-    document.getElementById('closeCart').addEventListener('click', function() {
-        document.getElementById('cartSidebar').classList.remove('open');
-    });
-    
-    // Checkout button
-    document.getElementById('checkoutBtn').addEventListener('click', function() {
-        var cart = JSON.parse(localStorage.getItem('cart')) || [];
-        if (cart.length === 0) {
-            showNotification('Your cart is empty!');
-            return;
-        }
-        window.location.href = '/checkout/';
-    });
+    window.productData = JSON.parse('{{ products_json|default:"[]"|escapejs }}');
+    console.log('🛒 Product Data:', window.productData);
 </script>
+<script src="{% static 'js/shop.js' %}"></script>
 {% endblock %}

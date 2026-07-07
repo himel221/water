@@ -20,5 +20,20 @@ urlpatterns = [
 
     #Admin Views
     path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),
-     path('admin-orders/', views.admin_orders, name='admin_orders'),
+    path('admin-orders/', views.admin_orders, name='admin_orders'),
+
+    #  Export URLs
+    path('api/orders/export/excel/', views.export_orders_excel, name='export_orders_excel'),
+    path('api/orders/export/pdf/', views.export_orders_pdf, name='export_orders_pdf'),
+
+    # Product Management URLs
+    #path('admin-products/', views.admin_products, name='admin_products'),
+    #path('api/products/', views.get_products, name='get_products'),
+    #path('api/products/create/', views.create_product, name='create_product'),
+    #path('api/products/<int:product_id>/update/', views.update_product, name='update_product'),
+    #path('api/products/<int:product_id>/delete/', views.delete_product, name='delete_product'),
+    #path('api/products/<int:product_id>/toggle/', views.toggle_product_status, name='toggle_product_status'),
+    #path('api/products/<int:product_id>/', views.get_product_detail, name='get_product_detail'),
+    #path('api/products/export/excel/', views.export_products_excel, name='export_products_excel'),
+    #path('api/products/export/pdf/', views.export_products_pdf, name='export_products_pdf'),
 ]
