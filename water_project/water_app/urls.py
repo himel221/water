@@ -21,6 +21,7 @@ urlpatterns = [
     #Admin Views
     path('admin-dashboard/', views.admin_dashboard, name='admin_dashboard'),
     path('admin-orders/', views.admin_orders, name='admin_orders'),
+    path('api/orders/<str:order_id>/delete/', views.delete_order, name='delete_order'),
 
     #  Export URLs
     path('api/orders/export/excel/', views.export_orders_excel, name='export_orders_excel'),

@@ -41,6 +41,45 @@
         color: white;
     }
     
+    /* ===== Payment Badge ===== */
+    .payment-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    .payment-badge.pending {
+        background: #fff3cd;
+        color: #856404;
+    }
+    .payment-badge.pending i {
+        color: #ffc107;
+    }
+    .payment-badge.completed {
+        background: #d4edda;
+        color: #155724;
+    }
+    .payment-badge.completed i {
+        color: #28a745;
+    }
+    .payment-badge.failed {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    .payment-badge.failed i {
+        color: #dc3545;
+    }
+    .payment-badge.refunded {
+        background: #e8f4fd;
+        color: #0c5460;
+    }
+    .payment-badge.refunded i {
+        color: #17a2b8;
+    }
+    
     /* ===== Eligibility Badge ===== */
     .eligibility-badge {
         display: inline-flex;
@@ -437,6 +476,7 @@
                         <th>Items</th>
                         <th>Total</th>
                         <th>Discount</th>
+                        <th>Payment</th>
                         <th>Status</th>
                         <th>Special Offer</th>
                         <th>Eligibility</th>
@@ -468,6 +508,12 @@
                             {% else %}
                             <span class="no-discount">-</span>
                             {% endif %}
+                        </td>
+                        <td>
+                            <span class="payment-badge {{ order.payment_status|default:'pending' }}">
+                                <i class="fas fa-circle"></i>
+                                {{ order.payment_status|default:'Pending'|title }}
+                            </span>
                         </td>
                         <td>
                             <span class="status-badge {{ order.status }}">
@@ -520,7 +566,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="14" class="no-orders">
+                        <td colspan="15" class="no-orders">
                             <i class="fas fa-shopping-bag"></i>
                             <h3>No Orders Found</h3>
                             <p>Start making sales and watch your orders grow!</p>

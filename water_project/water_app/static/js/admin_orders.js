@@ -18,7 +18,7 @@ function initializeOrders(orders) {
         if (tbody) {
             tbody.innerHTML = `
                 <tr>
-                    <td colspan="14" class="no-orders">
+                    <td colspan="15" class="no-orders">
                         <i class="fas fa-shopping-bag"></i>
                         <h3>No Orders Found</h3>
                         <p>Start making sales and watch your orders grow!</p>
@@ -143,24 +143,29 @@ function setupEventListeners() {
         }
     });
     
-    // Edit Order
+    // Edit Order - FIXED: Open in new tab or redirect to admin panel
     document.addEventListener('click', function(e) {
         const editBtn = e.target.closest('.btn-edit');
         if (editBtn) {
+            e.preventDefault();
             const orderId = editBtn.dataset.orderId;
             if (orderId) {
+                // Redirect to Django admin edit page
                 window.location.href = `/admin/water_app/order/${orderId}/change/`;
             }
         }
     });
     
-    // Delete Order
+    // Delete Order - FIXED: Use DELETE method with CSRF token
     document.addEventListener('click', function(e) {
         const deleteBtn = e.target.closest('.btn-delete');
         if (deleteBtn) {
+            e.preventDefault();
             const orderId = deleteBtn.dataset.orderId;
-            if (orderId && confirm(`Are you sure you want to delete order ${orderId}?`)) {
-                deleteOrder(orderId);
+            if (orderId) {
+                if (confirm(`Are you sure you want to delete order ${orderId}? This action cannot be undone.`)) {
+                    deleteOrder(orderId);
+                }
             }
         }
     });
@@ -275,7 +280,7 @@ function renderTable() {
     if (filteredOrders.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="14" class="no-orders">
+                <td colspan="15" class="no-orders">
                     <i class="fas fa-shopping-bag"></i>
                     <h3>No Orders Found</h3>
                     <p>Try adjusting your filters or search terms.</p>
@@ -300,6 +305,11 @@ function renderTable() {
         const statusClass = order.status || 'pending';
         const statusLabel = order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'Pending';
         
+        // Payment Status
+        const paymentStatus = order.payment_status || 'pending';
+        const paymentLabel = paymentStatus.charAt(0).toUpperCase() + paymentStatus.slice(1);
+        const paymentClass = paymentStatus.toLowerCase();
+        
         // Offer HTML
         let offerHtml = '';
         if (order.special_offers_list && order.special_offers_list.length > 0) {
@@ -317,8 +327,8 @@ function renderTable() {
         
         // Eligibility HTML
         const eligibilityHtml = order.is_eligible_for_offer ?
-            `<span class="offer-eligibility-badge eligible"><i class="fas fa-check-circle"></i> Eligible</span>` :
-            `<span class="offer-eligibility-badge not-eligible"><i class="fas fa-times-circle"></i> Not Eligible</span>`;
+            `<span class="eligibility-badge eligible"><i class="fas fa-check-circle"></i> Eligible</span>` :
+            `<span class="eligibility-badge not-eligible"><i class="fas fa-times-circle"></i> Not Eligible</span>`;
         
         html += `
             <tr>
@@ -338,6 +348,12 @@ function renderTable() {
                 <td>${order.get_total_items || 0}</td>
                 <td><span class="amount">৳${(order.total_amount || 0).toFixed(2)}</span></td>
                 <td>${totalDiscount}</td>
+                <td>
+                    <span class="payment-badge ${paymentClass}">
+                        <i class="fas fa-circle"></i>
+                        ${paymentLabel}
+                    </span>
+                </td>
                 <td><span class="status-badge ${statusClass}"><i class="fas fa-circle"></i> ${statusLabel}</span></td>
                 <td>${offerHtml}</td>
                 <td>${eligibilityHtml}</td>
@@ -541,12 +557,15 @@ function viewOrder(orderId) {
                 <span class="label">Payment Method</span>
                 <span class="value">${escapeHtml(order.payment_method || 'Cash on Delivery')}</span>
             </div>
-            ${order.payment_status ? `
             <div class="detail-row">
                 <span class="label">Payment Status</span>
-                <span class="value">${escapeHtml(order.payment_status)}</span>
+                <span class="value">
+                    <span class="payment-badge ${order.payment_status || 'pending'}">
+                        <i class="fas fa-circle"></i>
+                        ${order.payment_status ? order.payment_status.charAt(0).toUpperCase() + order.payment_status.slice(1) : 'Pending'}
+                    </span>
+                </span>
             </div>
-            ` : ''}
         </div>
         
         <div class="detail-section">
@@ -722,23 +741,32 @@ function deleteOrder(orderId) {
         method: 'DELETE',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken
-        }
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin'
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
+        console.log('Delete response:', data);
         if (data.status === 'success' || data.success) {
+            // Remove from currentOrders
             currentOrders = currentOrders.filter(o => o.order_id !== orderId);
             filteredOrders = filteredOrders.filter(o => o.order_id !== orderId);
             updateStats();
             renderTable();
-            showToast('Order deleted successfully!', 'success');
+            showToast('✅ Order deleted successfully!', 'success');
         } else {
             showToast(data.message || 'Failed to delete order', 'error');
         }
     })
     .catch(error => {
-        console.error('Error:', error);
+        console.error('❌ Delete error:', error);
         showToast('Error deleting order. Please try again.', 'error');
     });
 }
@@ -1003,4 +1031,4 @@ window.downloadInvoice = downloadInvoice;
 })();
 
 console.log('✅ Admin Orders JavaScript loaded successfully!');
-console.log('📋 All fields included in export: Order ID, Customer, Phone, Address, District, Items, Total, Discount, Status, Special Offer, Eligibility, Date');
+console.log('📋 All fields included in export: Order ID, Customer, Phone, Address, District, Items, Total, Discount, Payment Status, Order Status, Special Offer, Eligibility, Date');
