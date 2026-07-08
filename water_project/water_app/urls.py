@@ -40,4 +40,13 @@ urlpatterns = [
     path('api/products/<int:product_id>/', views.get_product_detail, name='get_product_detail'),
     path('api/products/export/excel/', views.export_products_excel, name='export_products_excel'),
     path('api/products/export/pdf/', views.export_products_pdf, name='export_products_pdf'),
+
+    #-------------Admin Delivery_______________#
+    path('admin-delivery/', views.admin_delivery, name='admin_delivery'),
+    path('api/delivery/create/', views.create_district, name='create_district'),
+    path('api/delivery/<int:district_id>/update/', views.update_district, name='update_district'),
+    path('api/delivery/<int:district_id>/delete/', views.delete_district, name='delete_district'),
+    path('api/delivery/<int:district_id>/toggle/', views.toggle_district_status, name='toggle_district_status'),
+    path('api/delivery/export/excel/', views.export_districts_excel, name='export_districts_excel'),
+    path('api/delivery/export/pdf/', views.export_districts_pdf, name='export_districts_pdf'),
 ]

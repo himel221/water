@@ -7,6 +7,7 @@ import json
 import io
 from decimal import Decimal
 from datetime import datetime, timedelta
+from django.db import models
 
 # ReportLab Import
 try:
@@ -1822,6 +1823,377 @@ def export_products_pdf(request):
         ('ALIGN', (0, 0), (0, -1), 'CENTER'),
         ('ALIGN', (5, 1), (5, -1), 'CENTER'),
         ('ALIGN', (2, 1), (2, -1), 'RIGHT'),
+        ('PADDING', (0, 0), (-1, -1), 3),
+    ]))
+    
+    story.append(table)
+    story.append(Spacer(1, 0.3*inch))
+    
+    # Footer
+    footer_style = ParagraphStyle('FooterStyle', parent=styles['Normal'], fontSize=9, textColor=colors.HexColor('#999999'), alignment=TA_CENTER)
+    story.append(Paragraph("© 2026 Aquanimity Super Water. All rights reserved.", footer_style))
+    
+    doc.build(story)
+    buffer.seek(0)
+    response.write(buffer.getvalue())
+    return response
+
+
+# ============================================
+# DELIVERY MANAGEMENT VIEWS
+# ============================================
+
+
+@staff_member_required
+def admin_delivery(request):
+    """Admin Delivery Charges Management Page"""
+    districts = DistrictDeliveryCharge.objects.all().order_by('district_name')
+    
+    context = {
+        'districts': districts,
+        'districts_json': json.dumps([{
+            'id': d.id,
+            'district': d.district,
+            'district_name': d.district_name,
+            'charge': float(d.charge),
+            'delivery_time': d.delivery_time,
+            'is_active': d.is_active,
+            'created_at': d.created_at.isoformat() if d.created_at else None,
+        } for d in districts]),
+        'total_districts': districts.count(),
+        'active_districts': districts.filter(is_active=True).count(),
+        'inactive_districts': districts.filter(is_active=False).count(),
+        'avg_charge': districts.aggregate(avg_charge=models.Avg('charge'))['avg_charge'] or 0,
+        'total_orders': Order.objects.count(),
+        'total_products': Product.objects.count(),
+        'total_customers': 0,
+    }
+    return render(request, 'admin_delivery.html', context)
+
+
+@csrf_exempt
+@staff_member_required
+def create_district(request):
+    """Create a new district delivery charge"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        district_name = request.POST.get('district_name', '').strip()
+        district = request.POST.get('district', '').strip().lower()
+        charge = request.POST.get('charge')
+        delivery_time = request.POST.get('delivery_time', '2-3 days').strip()
+        is_active = request.POST.get('is_active', 'true') == 'true'
+        
+        # Validate required fields
+        if not district_name:
+            return JsonResponse({'status': 'error', 'message': 'District name is required'}, status=400)
+        if not charge:
+            return JsonResponse({'status': 'error', 'message': 'Delivery charge is required'}, status=400)
+        
+        try:
+            charge = float(charge)
+            if charge < 0:
+                return JsonResponse({'status': 'error', 'message': 'Charge cannot be negative'}, status=400)
+        except ValueError:
+            return JsonResponse({'status': 'error', 'message': 'Invalid charge format'}, status=400)
+        
+        # Auto-generate district code if not provided
+        if not district:
+            district = district_name.lower().replace(' ', '_')
+        
+        # Check if district already exists
+        if DistrictDeliveryCharge.objects.filter(district=district).exists():
+            return JsonResponse({'status': 'error', 'message': f'District "{district}" already exists'}, status=400)
+        
+        # Create district
+        district_obj = DistrictDeliveryCharge(
+            district_name=district_name,
+            district=district,
+            charge=charge,
+            delivery_time=delivery_time,
+            is_active=is_active,
+        )
+        district_obj.save()
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': 'District added successfully',
+            'district_id': district_obj.id
+        })
+        
+    except Exception as e:
+        print(f"Error creating district: {str(e)}")
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
+@csrf_exempt
+@staff_member_required
+def update_district(request, district_id):
+    """Update an existing district delivery charge"""
+    if request.method not in ['POST', 'PUT']:
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        district_obj = get_object_or_404(DistrictDeliveryCharge, id=district_id)
+        
+        district_name = request.POST.get('district_name', '').strip()
+        district = request.POST.get('district', '').strip().lower()
+        charge = request.POST.get('charge')
+        delivery_time = request.POST.get('delivery_time', '2-3 days').strip()
+        is_active = request.POST.get('is_active', 'true') == 'true'
+        
+        # Validate required fields
+        if not district_name:
+            return JsonResponse({'status': 'error', 'message': 'District name is required'}, status=400)
+        if not charge:
+            return JsonResponse({'status': 'error', 'message': 'Delivery charge is required'}, status=400)
+        
+        try:
+            charge = float(charge)
+            if charge < 0:
+                return JsonResponse({'status': 'error', 'message': 'Charge cannot be negative'}, status=400)
+        except ValueError:
+            return JsonResponse({'status': 'error', 'message': 'Invalid charge format'}, status=400)
+        
+        # Check if district code already exists (excluding current)
+        if district and DistrictDeliveryCharge.objects.filter(district=district).exclude(id=district_id).exists():
+            return JsonResponse({'status': 'error', 'message': f'District "{district}" already exists'}, status=400)
+        
+        # Update district
+        district_obj.district_name = district_name
+        district_obj.district = district if district else district_name.lower().replace(' ', '_')
+        district_obj.charge = charge
+        district_obj.delivery_time = delivery_time
+        district_obj.is_active = is_active
+        district_obj.save()
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': 'District updated successfully',
+            'district_id': district_obj.id
+        })
+        
+    except Exception as e:
+        print(f"Error updating district: {str(e)}")
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
+@csrf_exempt
+@staff_member_required
+def delete_district(request, district_id):
+    """Delete a district delivery charge"""
+    if request.method != 'DELETE':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        district_obj = get_object_or_404(DistrictDeliveryCharge, id=district_id)
+        district_obj.delete()
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': 'District deleted successfully'
+        })
+        
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
+@csrf_exempt
+@staff_member_required
+def toggle_district_status(request, district_id):
+    """Toggle district active status"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        district_obj = get_object_or_404(DistrictDeliveryCharge, id=district_id)
+        data = json.loads(request.body)
+        is_active = data.get('is_active', not district_obj.is_active)
+        
+        district_obj.is_active = is_active
+        district_obj.save()
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': f'District {"activated" if is_active else "deactivated"} successfully',
+            'is_active': is_active
+        })
+        
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
+@staff_member_required
+def export_districts_excel(request):
+    """Export districts as Excel file"""
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    except ImportError:
+        return HttpResponse("⚠️ openpyxl not installed. Please install: pip install openpyxl", status=500)
+    
+    districts = DistrictDeliveryCharge.objects.all().order_by('district_name')
+    
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Districts Report"
+    
+    # Styles
+    header_font = Font(name='Arial', size=10, bold=True, color='FFFFFF')
+    header_fill = PatternFill(start_color='1a5276', end_color='1a5276', fill_type='solid')
+    header_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    border = Border(
+        left=Side(style='thin', color='000000'),
+        right=Side(style='thin', color='000000'),
+        top=Side(style='thin', color='000000'),
+        bottom=Side(style='thin', color='000000')
+    )
+    
+    # Title
+    ws.merge_cells('A1:F1')
+    title_cell = ws['A1']
+    title_cell.value = "📦 Aquanimity SuperWater - Delivery Charges Report"
+    title_cell.font = Font(name='Arial', size=18, bold=True, color='1a5276')
+    title_cell.alignment = Alignment(horizontal='center', vertical='center')
+    
+    ws.merge_cells('A2:F2')
+    subtitle_cell = ws['A2']
+    subtitle_cell.value = f"Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')} | Total Districts: {districts.count()}"
+    subtitle_cell.font = Font(name='Arial', size=10, color='666666')
+    subtitle_cell.alignment = Alignment(horizontal='center', vertical='center')
+    
+    # Headers
+    headers = ['Sl No', 'District Name', 'District Code', 'Charge (৳)', 'Delivery Time', 'Status']
+    
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=4, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = header_alignment
+        cell.border = border
+    
+    # Data
+    row_num = 5
+    for idx, district in enumerate(districts, 1):
+        row_data = [
+            idx,
+            district.district_name,
+            district.district,
+            float(district.charge),
+            district.delivery_time or '2-3 days',
+            'Active' if district.is_active else 'Inactive'
+        ]
+        
+        for col, value in enumerate(row_data, 1):
+            cell = ws.cell(row=row_num, column=col, value=value)
+            cell.alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+            cell.border = border
+        
+        row_num += 1
+    
+    # Column widths
+    widths = {'A': 6, 'B': 30, 'C': 18, 'D': 14, 'E': 16, 'F': 10}
+    for col, width in widths.items():
+        ws.column_dimensions[col].width = width
+    
+    ws.freeze_panes = 'A5'
+    
+    # Summary Statistics
+    summary_row = row_num + 2
+    ws.merge_cells(f'A{summary_row}:D{summary_row}')
+    summary_title = ws.cell(row=summary_row, column=1)
+    summary_title.value = "📊 Summary Statistics"
+    summary_title.font = Font(name='Arial', size=12, bold=True)
+    
+    summary_data = [
+        ['Total Districts', str(districts.count())],
+        ['Active Districts', str(districts.filter(is_active=True).count())],
+        ['Inactive Districts', str(districts.filter(is_active=False).count())],
+        ['Average Charge', f"৳ {districts.aggregate(avg_charge=models.Avg('charge'))['avg_charge'] or 0:.2f}"],
+    ]
+    
+    for idx, (label, value) in enumerate(summary_data):
+        row = summary_row + idx + 1
+        ws.cell(row=row, column=1, value=label).font = Font(bold=True)
+        ws.cell(row=row, column=2, value=value)
+    
+    # Footer
+    footer_row = summary_row + len(summary_data) + 2
+    ws.merge_cells(f'A{footer_row}:F{footer_row}')
+    footer_cell = ws.cell(row=footer_row, column=1)
+    footer_cell.value = "© 2026 Aquanimity Super Water. All rights reserved."
+    footer_cell.font = Font(name='Arial', size=9, color='999999')
+    footer_cell.alignment = Alignment(horizontal='center')
+    
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    filename = f'districts_report_{datetime.now().strftime("%Y%m%d_%H%M")}.xlsx'
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    wb.save(response)
+    return response
+
+
+@staff_member_required
+def export_districts_pdf(request):
+    """Export districts as PDF file"""
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import landscape, A4
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import inch
+        from reportlab.lib.enums import TA_CENTER
+    except ImportError:
+        return HttpResponse("⚠️ ReportLab not installed. Please install: pip install reportlab", status=500)
+    
+    districts = DistrictDeliveryCharge.objects.all().order_by('district_name')
+    
+    response = HttpResponse(content_type='application/pdf')
+    filename = f'districts_report_{datetime.now().strftime("%Y%m%d_%H%M")}.pdf'
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+    
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('TitleStyle', parent=styles['Heading1'], fontSize=18, textColor=colors.HexColor('#1a5276'), alignment=TA_CENTER, spaceAfter=12, fontName='Helvetica-Bold')
+    subtitle_style = ParagraphStyle('SubtitleStyle', parent=styles['Normal'], fontSize=10, textColor=colors.HexColor('#666666'), alignment=TA_CENTER, spaceAfter=16)
+    
+    story = []
+    story.append(Paragraph("📦 Aquanimity SuperWater - Delivery Charges Report", title_style))
+    story.append(Paragraph(f"Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", subtitle_style))
+    story.append(Paragraph(f"Total Districts: {districts.count()}", subtitle_style))
+    story.append(Spacer(1, 0.2*inch))
+    
+    # Table
+    table_data = [['Sl', 'District Name', 'District Code', 'Charge (৳)', 'Delivery Time', 'Status']]
+    for idx, district in enumerate(districts[:100], 1):
+        table_data.append([
+            str(idx),
+            district.district_name[:25] + ('...' if len(district.district_name) > 25 else ''),
+            district.district,
+            f"৳{float(district.charge):.2f}",
+            district.delivery_time or '2-3 days',
+            'Active' if district.is_active else 'Inactive'
+        ])
+    
+    if districts.count() > 100:
+        table_data.append(['...', f'... and {districts.count() - 100} more districts', '', '', '', ''])
+    
+    table = Table(table_data, colWidths=[0.4*inch, 2.2*inch, 1.0*inch, 0.8*inch, 0.8*inch, 0.7*inch])
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a5276')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+        ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f8f9fa')),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#ddd')),
+        ('FONTSIZE', (0, 1), (-1, -1), 7),
+        ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+        ('ALIGN', (3, 1), (3, -1), 'RIGHT'),
         ('PADDING', (0, 0), (-1, -1), 3),
     ]))
     
