@@ -371,27 +371,28 @@
                 <div class="menu-item active">
                     <i class="fas fa-shopping-bag"></i>
                     <span>Orders</span>
-                    <span class="badge">{{ total_orders|default:0 }}</span>
+                    
                 </div>
             </a>
             <a href="{% url 'admin_products' %}">
                 <div class="menu-item">
                     <i class="fas fa-box"></i>
                     <span>Products</span>
-                    <span class="badge">{{ total_products|default:0 }}</span>
+                    
                 </div>
             </a>
             <a href="#">
                 <div class="menu-item">
                     <i class="fas fa-users"></i>
                     <span>Customers</span>
-                    <span class="badge">{{ total_customers|default:0 }}</span>
+                   
                 </div>
             </a>
-            <a href="#">
+            <a href="{% url 'admin_delivery' %}">
                 <div class="menu-item">
                     <i class="fas fa-truck"></i>
                     <span>Delivery</span>
+                  
                 </div>
             </a>
             <a href="#">

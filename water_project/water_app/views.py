@@ -441,6 +441,7 @@ def admin_dashboard(request):
         'total_orders': Order.objects.count(),
         'total_products': Product.objects.count(),
         'total_customers': Order.objects.values('customer_email').distinct().count(),
+        'total_districts': DistrictDeliveryCharge.objects.filter(is_active=True).count(),
         'total_revenue': sum(float(o.total_amount) for o in Order.objects.all()),
         'recent_orders': Order.objects.all().order_by('-created_at')[:5],
         'pending_orders': Order.objects.filter(status='pending').count(),
