@@ -1,13 +1,13 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Admin - Products Management{% endblock %}
+{% block title %}Admin - Inventory Management{% endblock %}
 
 {% block extra_css %}
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
-<link rel="stylesheet" href="{% static 'css/admin_products.css' %}" />
+<link rel="stylesheet" href="{% static 'css/admin_inventory.css' %}" />
 <style>
     /* ===== Additional Styles ===== */
     .product-image-thumb {
@@ -38,29 +38,6 @@
         font-size: 15px;
     }
     
-    .price-discount {
-        font-weight: 700;
-        color: #dc3545;
-        font-size: 15px;
-    }
-    
-    .price-original {
-        font-size: 13px;
-        color: #999;
-        text-decoration: line-through;
-        display: block;
-    }
-    
-    .discount-percent-badge {
-        display: inline-block;
-        background: #dc3545;
-        color: white;
-        padding: 2px 10px;
-        border-radius: 12px;
-        font-size: 11px;
-        font-weight: 600;
-    }
-    
     .stock-badge {
         display: inline-flex;
         align-items: center;
@@ -84,6 +61,13 @@
     .stock-badge.low-stock i {
         color: #ffc107;
     }
+    .stock-badge.critical-stock {
+        background: #fde8e8;
+        color: #721c24;
+    }
+    .stock-badge.critical-stock i {
+        color: #dc3545;
+    }
     .stock-badge.out-of-stock {
         background: #f8d7da;
         color: #721c24;
@@ -92,19 +76,10 @@
         color: #dc3545;
     }
     
-    .offer-tag {
-        display: inline-block;
-        padding: 2px 10px;
-        border-radius: 12px;
-        font-size: 11px;
-        font-weight: 600;
-        background: #fff3cd;
-        color: #856404;
-        margin: 2px 0;
-    }
-    .offer-tag.active {
-        background: #d4edda;
-        color: #155724;
+    .stock-value {
+        font-weight: 700;
+        color: #007bff;
+        font-size: 14px;
     }
     
     .action-buttons .btn-view {
@@ -123,6 +98,14 @@
         background: #f39c12;
         color: white;
     }
+    .action-buttons .btn-add-stock {
+        background: #d4edda;
+        color: #28a745;
+    }
+    .action-buttons .btn-add-stock:hover {
+        background: #28a745;
+        color: white;
+    }
     .action-buttons .btn-delete {
         background: #f8d7da;
         color: #dc3545;
@@ -131,102 +114,11 @@
         background: #dc3545;
         color: white;
     }
-    .action-buttons .btn-toggle {
-        background: #e8f0fe;
-        color: #6c757d;
-    }
-    .action-buttons .btn-toggle:hover {
-        background: #6c757d;
-        color: white;
-    }
-    
-    /* ===== Export Buttons ===== */
-    .export-buttons {
-        display: flex;
-        gap: 10px;
-        align-items: center;
-        flex-wrap: wrap;
-    }
-    .btn-export-pdf {
-        padding: 8px 20px;
-        background: #dc3545;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        font-weight: 600;
-        font-size: 13px;
-        transition: all 0.3s;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    .btn-export-pdf:hover {
-        background: #c82333;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
-    }
-    .btn-export-excel {
-        padding: 8px 20px;
-        background: #28a745;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        font-weight: 600;
-        font-size: 13px;
-        transition: all 0.3s;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    .btn-export-excel:hover {
-        background: #218838;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
-    }
-    .btn-export-all {
-        padding: 8px 20px;
-        background: #6c757d;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        font-weight: 600;
-        font-size: 13px;
-        transition: all 0.3s;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    .btn-export-all:hover {
-        background: #5a6268;
-        transform: translateY(-2px);
-    }
-    .btn-add-product {
-        padding: 8px 20px;
-        background: #007bff;
-        color: white;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        font-weight: 600;
-        font-size: 13px;
-        transition: all 0.3s;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-    }
-    .btn-add-product:hover {
-        background: #0056b3;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
-    }
     
     /* ===== Modal Styles ===== */
     .modal-product-image {
         width: 100%;
-        max-height: 300px;
+        max-height: 250px;
         object-fit: contain;
         border-radius: 12px;
         background: #f8f9fa;
@@ -260,23 +152,23 @@
         color: #28a745;
         font-size: 16px;
     }
-    .modal-detail-item .value.discount-price {
-        color: #dc3545;
+    .modal-detail-item .value.stock-value {
+        color: #007bff;
         font-size: 16px;
     }
     
-    /* ===== Quick Edit Modal ===== */
-    .quick-edit-form .form-group {
+    /* ===== Add Stock Modal ===== */
+    .add-stock-form .form-group {
         margin-bottom: 16px;
     }
-    .quick-edit-form label {
+    .add-stock-form label {
         font-weight: 600;
         color: #2c3e50;
         font-size: 13px;
         margin-bottom: 4px;
         display: block;
     }
-    .quick-edit-form .form-control {
+    .add-stock-form .form-control {
         width: 100%;
         border-radius: 8px;
         border: 2px solid #e8ecf1;
@@ -285,33 +177,18 @@
         transition: all 0.3s ease;
         background: #fafafa;
     }
-    .quick-edit-form .form-control:focus {
+    .add-stock-form .form-control:focus {
         border-color: #007bff;
         box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
         background: white;
     }
-    .quick-edit-form textarea.form-control {
-        resize: vertical;
-        min-height: 80px;
-    }
-    .quick-edit-form .form-row {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 16px;
-    }
-    .quick-edit-form .form-row-3 {
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr;
-        gap: 16px;
-    }
-    
-    /* ===== Toast Styles ===== */
-    .toast-notification {
-        animation: slideUp 0.3s ease;
-    }
-    @keyframes slideUp {
-        from { transform: translateY(20px); opacity: 0; }
-        to { transform: translateY(0); opacity: 1; }
+    .add-stock-form .current-stock {
+        background: #f8f9fa;
+        padding: 10px 14px;
+        border-radius: 8px;
+        border: 2px solid #e8ecf1;
+        font-weight: 600;
+        color: #2c3e50;
     }
     
     .btn-cancel {
@@ -327,7 +204,6 @@
     .btn-cancel:hover {
         background: #e0e4e8;
     }
-    
     .btn-save {
         padding: 10px 24px;
         background: #007bff;
@@ -359,12 +235,6 @@
         .modal-detail-grid {
             grid-template-columns: 1fr;
         }
-        .quick-edit-form .form-row {
-            grid-template-columns: 1fr;
-        }
-        .quick-edit-form .form-row-3 {
-            grid-template-columns: 1fr;
-        }
         .product-image-thumb {
             width: 40px;
             height: 40px;
@@ -374,7 +244,7 @@
 {% endblock %}
 
 {% block content %}
-<div class="admin-products-page">
+<div class="admin-inventory-page">
     <!-- Sidebar Overlay -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
@@ -397,33 +267,29 @@
                 <div class="menu-item">
                     <i class="fas fa-shopping-bag"></i>
                     <span>Orders</span>
-                 
                 </div>
             </a>
             <a href="{% url 'admin_products' %}">
-                <div class="menu-item active">
+                <div class="menu-item">
                     <i class="fas fa-box"></i>
                     <span>Products</span>
-                    
                 </div>
             </a>
             <a href="#">
                 <div class="menu-item">
                     <i class="fas fa-users"></i>
                     <span>Customers</span>
-                    
                 </div>
             </a>
             <a href="{% url 'admin_delivery' %}">
                 <div class="menu-item">
                     <i class="fas fa-truck"></i>
                     <span>Delivery</span>
-                
                 </div>
             </a>
-            <a href="#">
-                <div class="menu-item">
-                    <i class="fas fa-tags"></i>
+            <a href="{% url 'admin_inventory' %}">
+                <div class="menu-item active">
+                    <i class="fas fa-warehouse"></i>
                     <span>Inventory</span>
                 </div>
             </a>
@@ -479,7 +345,7 @@
         <!-- Stats -->
         <div class="stats-row">
             <div class="stat-card">
-                <div class="stat-icon blue"><i class="fas fa-box"></i></div>
+                <div class="stat-icon blue"><i class="fas fa-boxes"></i></div>
                 <div>
                     <div class="stat-number">{{ total_products|default:0 }}</div>
                     <div class="stat-label">Total Products</div>
@@ -488,83 +354,74 @@
             <div class="stat-card">
                 <div class="stat-icon green"><i class="fas fa-check-circle"></i></div>
                 <div>
-                    <div class="stat-number">{{ active_products|default:0 }}</div>
-                    <div class="stat-label">Active</div>
+                    <div class="stat-number">{{ in_stock_products|default:0 }}</div>
+                    <div class="stat-label">In Stock</div>
                 </div>
             </div>
             <div class="stat-card">
-                <div class="stat-icon yellow"><i class="fas fa-times-circle"></i></div>
-                <div>
-                    <div class="stat-number">{{ inactive_products|default:0 }}</div>
-                    <div class="stat-label">Inactive</div>
-                </div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-icon red"><i class="fas fa-exclamation-triangle"></i></div>
+                <div class="stat-icon yellow"><i class="fas fa-exclamation-triangle"></i></div>
                 <div>
                     <div class="stat-number">{{ low_stock_products|default:0 }}</div>
                     <div class="stat-label">Low Stock</div>
                 </div>
             </div>
+            <div class="stat-card">
+                <div class="stat-icon red"><i class="fas fa-times-circle"></i></div>
+                <div>
+                    <div class="stat-number">{{ out_of_stock_products|default:0 }}</div>
+                    <div class="stat-label">Out of Stock</div>
+                </div>
+            </div>
         </div>
 
-        <!-- Filter & Export Section -->
+        <!-- Filter Section -->
         <div class="filter-section" style="background: linear-gradient(135deg, #f8f9fa, #e9ecef); border: 1px solid #dee2e6;">
             <div class="filter-left">
                 <div class="search-box">
                     <i class="fas fa-search"></i>
                     <input type="text" placeholder="Search products..." id="searchInput" />
                 </div>
-                <select class="filter-select" id="statusFilter">
-                    <option value="all">All Status</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                </select>
                 <select class="filter-select" id="stockFilter">
                     <option value="all">All Stock</option>
-                    <option value="in-stock">In Stock</option>
-                    <option value="low-stock">Low Stock</option>
-                    <option value="out-of-stock">Out of Stock</option>
+                    <option value="in-stock">In Stock (20+)</option>
+                    <option value="low-stock">Low Stock (1-20)</option>
+                    <option value="critical">Critical (1-5)</option>
+                    <option value="out-of-stock">Out of Stock (0)</option>
                 </select>
             </div>
             <div class="export-buttons">
                 <span style="font-weight: 600; color: #2c3e50; font-size: 14px; margin-right: 4px;">
-                    <i class="fas fa-plus-circle"></i> Actions:
+                    <i class="fas fa-file-export"></i> Export:
                 </span>
-                <button class="btn-add-product" id="addProductBtn" title="Add new product">
-                    <i class="fas fa-plus"></i> Add Product
-                </button>
-                <button class="btn-export-excel" id="exportExcel" title="Export products as Excel">
+                <button class="btn-export-excel" id="exportExcel">
                     <i class="fas fa-file-excel"></i> Excel
                 </button>
-                <button class="btn-export-pdf" id="exportPdf" title="Export products as PDF">
+                <button class="btn-export-pdf" id="exportPdf">
                     <i class="fas fa-file-pdf"></i> PDF
                 </button>
-                <button class="btn-export-all" id="refreshBtn" title="Refresh page">
+                <button class="btn-export-all" id="refreshBtn">
                     <i class="fas fa-sync-alt"></i> Refresh
                 </button>
             </div>
         </div>
 
-        <!-- Products Table -->
+        <!-- Table -->
         <div class="table-container">
-            <table class="products-table">
+            <table class="inventory-table">
                 <thead>
                     <tr>
                         <th style="width: 40px;"><input type="checkbox" id="selectAll" /></th>
                         <th style="width: 70px;">Image</th>
                         <th>Product</th>
                         <th>Price</th>
-                        <th>Discount Price</th>
-                        <th>Discount %</th>
                         <th>Stock</th>
-                        <th>Special Offer</th>
+                        <th>Stock Value</th>
                         <th>Status</th>
                         <th>Created</th>
-                        <th style="width: 140px;">Actions</th>
+                        <th style="width: 180px;">Actions</th>
                     </tr>
                 </thead>
-                <tbody id="productsTableBody">
+                <tbody id="inventoryTableBody">
                     {% for product in products %}
                     <tr>
                         <td><input type="checkbox" class="product-checkbox" data-product-id="{{ product.id }}" /></td>
@@ -582,44 +439,32 @@
                         </td>
                         <td>
                             <span class="price-current">৳{{ product.price|floatformat:2 }}</span>
-                        </td>
-                        <td>
-                            {% if product.discount_price %}
-                            <span class="price-discount">৳{{ product.discount_price|floatformat:2 }}</span>
-                            {% else %}
-                            <span style="color: #999;">-</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if product.discount_percentage %}
-                            <span class="discount-percent-badge">{{ product.discount_percentage }}% OFF</span>
-                            {% else %}
-                            <span style="color: #999;">-</span>
+                            {% if product.is_on_sale and product.discount_price %}
+                            <span style="display:block; font-size:10px; color:#dc3545;">Sale: ৳{{ product.discount_price|floatformat:2 }}</span>
                             {% endif %}
                         </td>
                         <td>
                             {% if product.stock_quantity > 20 %}
-                            <span class="stock-badge in-stock"><i class="fas fa-check-circle"></i> {{ product.stock_quantity }} in stock</span>
+                            <span class="stock-badge in-stock"><i class="fas fa-check-circle"></i> {{ product.stock_quantity }}</span>
+                            {% elif product.stock_quantity > 5 %}
+                            <span class="stock-badge low-stock"><i class="fas fa-exclamation-circle"></i> {{ product.stock_quantity }}</span>
                             {% elif product.stock_quantity > 0 %}
-                            <span class="stock-badge low-stock"><i class="fas fa-exclamation-circle"></i> {{ product.stock_quantity }} left</span>
+                            <span class="stock-badge critical-stock"><i class="fas fa-exclamation-triangle"></i> {{ product.stock_quantity }}</span>
                             {% else %}
-                            <span class="stock-badge out-of-stock"><i class="fas fa-times-circle"></i> Out of stock</span>
+                            <span class="stock-badge out-of-stock"><i class="fas fa-times-circle"></i> {{ product.stock_quantity }}</span>
                             {% endif %}
                         </td>
                         <td>
-                            {% if product.special_offer %}
-                            <span class="offer-tag active">
-                                <i class="fas fa-gift"></i> {{ product.special_offer }}
-                            </span>
-                            {% else %}
-                            <span class="offer-tag" style="background: #f0f0f0; color: #999;">No offer</span>
-                            {% endif %}
+                            <span class="stock-value">৳{{ product.get_stock_value|floatformat:2 }}</span>
                         </td>
                         <td>
-                            <span class="status-badge {% if product.is_active %}active{% else %}inactive{% endif %}">
-                                <i class="fas fa-circle"></i>
-                                {% if product.is_active %}Active{% else %}Inactive{% endif %}
-                            </span>
+                            {% if product.stock_quantity > 20 %}
+                            <span class="status-badge active"><i class="fas fa-circle"></i> In Stock</span>
+                            {% elif product.stock_quantity > 0 %}
+                            <span class="status-badge low-stock"><i class="fas fa-circle"></i> Low Stock</span>
+                            {% else %}
+                            <span class="status-badge out-of-stock"><i class="fas fa-circle"></i> Out of Stock</span>
+                            {% endif %}
                         </td>
                         <td>
                             <span style="display: block; font-weight: 500; font-size: 13px;">{{ product.created_at|date:"d M Y" }}</span>
@@ -630,13 +475,13 @@
                                 <button class="btn-view" data-product-id="{{ product.id }}" title="View Details">
                                     <i class="fas fa-eye"></i>
                                 </button>
+                                <button class="btn-add-stock" data-product-id="{{ product.id }}" title="Add Stock">
+                                    <i class="fas fa-plus-circle"></i>
+                                </button>
                                 <button class="btn-edit" data-product-id="{{ product.id }}" title="Edit Product">
                                     <i class="fas fa-edit"></i>
                                 </button>
-                                <button class="btn-toggle" data-product-id="{{ product.id }}" title="Toggle Status">
-                                    <i class="fas {% if product.is_active %}fa-eye-slash{% else %}fa-eye{% endif %}"></i>
-                                </button>
-                                <button class="btn-delete" data-product-id="{{ product.id }}" title="Delete Product">
+                                <button class="btn-delete" data-product-id="{{ product.id }}" title="Delete">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -644,13 +489,10 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="11" class="no-products">
+                        <td colspan="9" class="no-data">
                             <i class="fas fa-box-open"></i>
                             <h3>No Products Found</h3>
                             <p>Start adding products to your inventory!</p>
-                            <button class="btn-add-product" id="emptyAddBtn" style="margin-top: 12px;">
-                                <i class="fas fa-plus"></i> Add Your First Product
-                            </button>
                         </td>
                     </tr>
                     {% endfor %}
@@ -687,77 +529,54 @@
     </div>
 </div>
 
-<!-- ===== Add/Edit Product Modal ===== -->
-<div class="modal-overlay" id="productFormModal" style="display: none;">
-    <div class="modal-content" style="max-width: 650px; max-height: 90vh; overflow-y: auto;">
+<!-- ===== Add Stock Modal ===== -->
+<div class="modal-overlay" id="addStockModal" style="display: none;">
+    <div class="modal-content" style="max-width: 500px;">
         <div class="modal-header">
-            <h3 id="formModalTitle"><i class="fas fa-plus"></i> Add New Product</h3>
-            <button class="modal-close" id="closeFormModal"><i class="fas fa-times"></i></button>
+            <h3><i class="fas fa-plus-circle"></i> Add Stock</h3>
+            <button class="modal-close" id="closeStockModal"><i class="fas fa-times"></i></button>
         </div>
         <div class="modal-body">
-            <form id="productForm" class="quick-edit-form" enctype="multipart/form-data">
+            <form id="addStockForm" class="add-stock-form">
                 {% csrf_token %}
-                <input type="hidden" id="editProductId" value="" />
+                <input type="hidden" id="stockProductId" value="" />
                 
                 <div class="form-group">
-                    <label for="productName">Product Name <span style="color: red;">*</span></label>
-                    <input type="text" class="form-control" id="productName" placeholder="Enter product name" required />
-                </div>
-                
-                <div class="form-group">
-                    <label for="productDescription">Description</label>
-                    <textarea class="form-control" id="productDescription" rows="3" placeholder="Enter product description"></textarea>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="productPrice">Price (৳) <span style="color: red;">*</span></label>
-                        <input type="number" class="form-control" id="productPrice" placeholder="0.00" step="0.01" min="0" required />
-                    </div>
-                    <div class="form-group">
-                        <label for="productDiscountPrice">Discount Price (৳)</label>
-                        <input type="number" class="form-control" id="productDiscountPrice" placeholder="0.00" step="0.01" min="0" />
-                    </div>
-                    <div class="form-group">
-                        <label for="productDiscountPercentage">Discount Percentage (%)</label>
-                        <input type="number" class="form-control" id="productDiscountPercentage" placeholder="0" min="0" max="100" />
-                    </div>
-                </div>
-                
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="productStockQuantity">Stock Quantity <span style="color: red;">*</span></label>
-                        <input type="number" class="form-control" id="productStockQuantity" placeholder="0" min="0" required />
-                    </div>
-                    <div class="form-group">
-                        <label for="productStatus">Status</label>
-                        <select class="form-control" id="productStatus">
-                            <option value="true">Active</option>
-                            <option value="false">Inactive</option>
-                        </select>
-                    </div>
+                    <label>Product</label>
+                    <div id="stockProductName" style="font-weight: 700; font-size: 16px; color: #2c3e50;">-</div>
                 </div>
                 
                 <div class="form-group">
-                    <label for="productSpecialOffer">Special Offer</label>
-                    <input type="text" class="form-control" id="productSpecialOffer" placeholder="e.g., Buy 1 Get 1 Free, 20% Off" />
+                    <label>Current Stock</label>
+                    <div class="current-stock" id="currentStock">0</div>
+                </div>
+
+                <div class="form-group">
+                    <label>Current Inventory</label>
+                    <div class="current-stock" id="currentInventory">0</div>
                 </div>
                 
                 <div class="form-group">
-                    <label for="productImage">Product Image</label>
-                    <input type="file" class="form-control" id="productImage" accept="image/*" />
-                    <small class="text-muted">Recommended: 500x500 pixels, Max 2MB</small>
-                    <div id="imagePreview" style="margin-top: 10px; display: none;">
-                        <img src="" alt="Preview" style="max-width: 150px; max-height: 150px; border-radius: 8px; border: 2px solid #e8ecf1;" />
-                    </div>
+                    <label for="addStockQuantity">Quantity to Add <span style="color: red;">*</span></label>
+                    <input type="number" class="form-control" id="addStockQuantity" placeholder="Enter quantity" min="1" required />
+                </div>
+                
+                <div class="form-group">
+                    <label>New Stock After Addition</label>
+                    <div class="current-stock" id="newStockAfterAdd" style="color: #28a745; font-size: 18px;">0</div>
+                </div>
+
+                <div class="form-group">
+                    <label>New Inventory After Addition</label>
+                    <div class="current-stock" id="newInventoryAfterAdd" style="color: #28a745; font-size: 16px;">0</div>
                 </div>
                 
                 <div style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 16px; border-top: 2px solid #e8ecf1;">
-                    <button type="button" class="btn-cancel" id="cancelFormBtn">
+                    <button type="button" class="btn-cancel" id="cancelStockBtn">
                         Cancel
                     </button>
                     <button type="submit" class="btn-save">
-                        <i class="fas fa-save"></i> Save Product
+                        <i class="fas fa-plus"></i> Add Stock
                     </button>
                 </div>
             </form>
@@ -773,8 +592,8 @@
     const productData = JSON.parse('{{ products_json|default:"[]"|escapejs }}');
     
     document.addEventListener('DOMContentLoaded', function() {
-        initializeProducts(productData);
+        initializeInventory(productData);
     });
 </script>
-<script src="{% static 'js/admin_products.js' %}"></script>
+<script src="{% static 'js/admin_inventory.js' %}"></script>
 {% endblock %}

@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Customer - SuperWater</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 50px 0;
+        }
+        .form-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        .form-title {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #333;
+        }
+        .form-title i {
+            color: #667eea;
+            margin-right: 10px;
+        }
+        .form-title h2 {
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+        .form-title p {
+            color: #666;
+            font-size: 14px;
+        }
+        .btn-submit {
+            width: 100%;
+            padding: 12px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+        }
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        .form-control:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        .required-field::after {
+            content: " *";
+            color: red;
+        }
+        .errorlist {
+            color: #dc3545;
+            list-style: none;
+            padding: 0;
+            margin-top: 5px;
+            font-size: 13px;
+        }
+        .alert-success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+        }
+        .nav-links {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+        .nav-links a {
+            margin: 0 15px;
+            text-decoration: none;
+            color: #667eea;
+            font-weight: 500;
+        }
+        .nav-links a:hover {
+            color: #764ba2;
+            text-decoration: underline;
+        }
+        .health-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            border-left: 4px solid #667eea;
+        }
+        .health-section h4 {
+            color: #667eea;
+        }
+        .form-text {
+            font-size: 12px;
+            color: #6c757d;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="form-container">
+            <div class="form-title">
+                <i class="fas fa-user-plus fa-3x"></i>
+                <h2>Customer Registration</h2>
+                <p>Fill in the details to register a new customer</p>
+            </div>
+            
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        <i class="fas fa-check-circle"></i> {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+            
+            <form method="POST" novalidate>
+                {% csrf_token %}
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label required-field">Full Name</label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                                <ul class="errorlist">
+                                    {% for error in form.name.errors %}
+                                        <li><i class="fas fa-exclamation-circle"></i> {{ error }}</li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label required-field">Email Address</label>
+                            {{ form.email }}
+                            {% if form.email.errors %}
+                                <ul class="errorlist">
+                                    {% for error in form.email.errors %}
+                                        <li><i class="fas fa-exclamation-circle"></i> {{ error }}</li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label required-field">Phone Number</label>
+                            {{ form.phone }}
+                            {% if form.phone.errors %}
+                                <ul class="errorlist">
+                                    {% for error in form.phone.errors %}
+                                        <li><i class="fas fa-exclamation-circle"></i> {{ error }}</li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label required-field">City</label>
+                            {{ form.city }}
+                            {% if form.city.errors %}
+                                <ul class="errorlist">
+                                    {% for error in form.city.errors %}
+                                        <li><i class="fas fa-exclamation-circle"></i> {{ error }}</li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label required-field">State / Province</label>
+                            {{ form.state }}
+                            {% if form.state.errors %}
+                                <ul class="errorlist">
+                                    {% for error in form.state.errors %}
+                                        <li><i class="fas fa-exclamation-circle"></i> {{ error }}</li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label required-field">Pincode</label>
+                            {{ form.pincode }}
+                            {% if form.pincode.errors %}
+                                <ul class="errorlist">
+                                    {% for error in form.pincode.errors %}
+                                        <li><i class="fas fa-exclamation-circle"></i> {{ error }}</li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label required-field">Address</label>
+                    {{ form.address }}
+                    {% if form.address.errors %}
+                        <ul class="errorlist">
+                            {% for error in form.address.errors %}
+                                <li><i class="fas fa-exclamation-circle"></i> {{ error }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% endif %}
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Company Name <span style="color:#999; font-size:12px;">(Optional)</span></label>
+                            {{ form.company_name }}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">GST Number <span style="color:#999; font-size:12px;">(Optional)</span></label>
+                            {{ form.gst_number }}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Health Information Section -->
+                <div class="health-section">
+                    <h4><i class="fas fa-heartbeat"></i> Health Information</h4>
+                    <p class="text-muted small">This information helps us recommend water products suitable for your health needs.</p>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Diabetes Status</label>
+                                {{ form.has_diabetes }}
+                                {% if form.has_diabetes.errors %}
+                                    <ul class="errorlist">
+                                        {% for error in form.has_diabetes.errors %}
+                                            <li><i class="fas fa-exclamation-circle"></i> {{ error }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Blood Pressure Status</label>
+                                {{ form.blood_pressure }}
+                                {% if form.blood_pressure.errors %}
+                                    <ul class="errorlist">
+                                        {% for error in form.blood_pressure.errors %}
+                                            <li><i class="fas fa-exclamation-circle"></i> {{ error }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Diabetes Notes <span style="color:#999; font-size:12px;">(Optional)</span></label>
+                                {{ form.diabetes_notes }}
+                                <small class="form-text">{{ form.diabetes_notes.help_text }}</small>
+                                {% if form.diabetes_notes.errors %}
+                                    <ul class="errorlist">
+                                        {% for error in form.diabetes_notes.errors %}
+                                            <li><i class="fas fa-exclamation-circle"></i> {{ error }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Blood Pressure Notes <span style="color:#999; font-size:12px;">(Optional)</span></label>
+                                {{ form.blood_pressure_notes }}
+                                <small class="form-text">{{ form.blood_pressure_notes.help_text }}</small>
+                                {% if form.blood_pressure_notes.errors %}
+                                    <ul class="errorlist">
+                                        {% for error in form.blood_pressure_notes.errors %}
+                                            <li><i class="fas fa-exclamation-circle"></i> {{ error }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Other Health Conditions <span style="color:#999; font-size:12px;">(Optional)</span></label>
+                        {{ form.other_health_conditions }}
+                        <small class="form-text">{{ form.other_health_conditions.help_text }}</small>
+                        {% if form.other_health_conditions.errors %}
+                            <ul class="errorlist">
+                                {% for error in form.other_health_conditions.errors %}
+                                    <li><i class="fas fa-exclamation-circle"></i> {{ error }}</li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-submit">
+                    <i class="fas fa-save"></i> Register Customer
+                </button>
+                
+                <div class="nav-links">
+                    <a href="{% url 'customer_list' %}"><i class="fas fa-list"></i> View All Customers</a>
+                    <a href="/"><i class="fas fa-home"></i> Home</a>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

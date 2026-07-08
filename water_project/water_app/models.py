@@ -69,6 +69,10 @@ class Product(models.Model):
     def is_eligible_for_offer(self):
         """Check if product is eligible for special offer"""
         return bool(self.special_offer and self.is_on_sale and self.is_active)
+    
+    def get_stock_value(self):
+        """Calculate total stock value for this product"""
+        return self.price * self.stock_quantity
 
 
 class DistrictDeliveryCharge(models.Model):
@@ -156,7 +160,7 @@ class DistrictDeliveryCharge(models.Model):
 
 class OrderItem(models.Model):
     order = models.ForeignKey('Order', on_delete=models.CASCADE, related_name='order_items')
-    product = models.ForeignKey('Product', on_delete=models.SET_NULL, null=True, blank=True)  # 👈 Added
+    product = models.ForeignKey('Product', on_delete=models.SET_NULL, null=True, blank=True)
     product_name = models.CharField(max_length=200)
     product_price = models.DecimalField(max_digits=10, decimal_places=2)
     original_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -445,3 +449,142 @@ class Order(models.Model):
             if item.special_offer:
                 offers.append(item.special_offer)
         return list(set(offers))
+
+
+# ============================================
+# INVENTORY MODEL
+# ============================================
+
+class Inventory(models.Model):
+    """Inventory model to track stock movements"""
+    
+    INVENTORY_TYPE_CHOICES = [
+        ('purchase', 'Purchase'),
+        ('sale', 'Sale'),
+        ('return', 'Return'),
+        ('adjustment', 'Adjustment'),
+        ('restock', 'Restock'),
+    ]
+    
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='inventory_movements')
+    quantity = models.IntegerField(help_text="Quantity added (positive) or removed (negative)")
+    previous_stock = models.IntegerField(help_text="Stock before this movement", default=0)
+    new_stock = models.IntegerField(help_text="Stock after this movement", default=0)
+    movement_type = models.CharField(max_length=20, choices=INVENTORY_TYPE_CHOICES, default='adjustment')
+    reference = models.CharField(max_length=100, blank=True, null=True, help_text="Order ID or reference number")
+    notes = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Inventory Movement'
+        verbose_name_plural = 'Inventory Movements'
+    
+    def __str__(self):
+        return f"{self.product.name} - {self.movement_type}: {self.quantity}"
+    
+    def save(self, *args, **kwargs):
+        # Auto-calculate new_stock if not provided
+        if self.new_stock == 0 and self.previous_stock is not None:
+            self.new_stock = self.previous_stock + self.quantity
+        super().save(*args, **kwargs)
+    
+class Customer(models.Model):
+    # Health Condition Choices
+    DIABETES_CHOICES = [
+        ('yes', 'Yes, I have Diabetes'),
+        ('no', 'No, I don\'t have Diabetes'),
+        ('pre', 'Pre-diabetic'),
+        ('gestational', 'Gestational Diabetes'),
+        ('unsure', 'Not sure'),
+    ]
+    
+    BLOOD_PRESSURE_CHOICES = [
+        ('normal', 'Normal (Less than 120/80)'),
+        ('elevated', 'Elevated (120-129/80)'),
+        ('stage1', 'Stage 1 Hypertension (130-139/80-89)'),
+        ('stage2', 'Stage 2 Hypertension (140+/90+)'),
+        ('crisis', 'Hypertensive Crisis (180+/120+)'),
+        ('unsure', 'Not sure / Don\'t know'),
+    ]
+    
+    # Basic Information
+    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
+    name = models.CharField(max_length=200)
+    email = models.EmailField(max_length=200)
+    phone = models.CharField(max_length=15)
+    address = models.TextField()
+    city = models.CharField(max_length=100)
+    state = models.CharField(max_length=100)
+    pincode = models.CharField(max_length=10)
+    
+    # Additional Fields
+    company_name = models.CharField(max_length=200, blank=True, null=True)
+    gst_number = models.CharField(max_length=20, blank=True, null=True)
+    
+    # Health Information Fields
+    has_diabetes = models.CharField(
+        max_length=20, 
+        choices=DIABETES_CHOICES, 
+        default='no',
+        verbose_name='Diabetes Status'
+    )
+    diabetes_notes = models.TextField(
+        blank=True, 
+        null=True,
+        help_text='Additional notes about diabetes condition (e.g., Type 1, Type 2, medications)',
+        verbose_name='Diabetes Notes'
+    )
+    
+    blood_pressure = models.CharField(
+        max_length=20, 
+        choices=BLOOD_PRESSURE_CHOICES, 
+        default='unsure',
+        verbose_name='Blood Pressure Status'
+    )
+    blood_pressure_notes = models.TextField(
+        blank=True, 
+        null=True,
+        help_text='Additional notes about blood pressure (e.g., medications, readings)',
+        verbose_name='Blood Pressure Notes'
+    )
+    
+    # Additional Health Info
+    other_health_conditions = models.TextField(
+        blank=True, 
+        null=True,
+        help_text='Any other health conditions or allergies',
+        verbose_name='Other Health Conditions'
+    )
+    
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return self.name
+    
+    def get_diabetes_display(self):
+        """Get human-readable diabetes status"""
+        return dict(self.DIABETES_CHOICES).get(self.has_diabetes, 'Not specified')
+    
+    def get_blood_pressure_display(self):
+        """Get human-readable blood pressure status"""
+        return dict(self.BLOOD_PRESSURE_CHOICES).get(self.blood_pressure, 'Not specified')
+    
+    @property
+    def is_diabetic(self):
+        """Check if customer has diabetes (excluding 'no' and 'unsure')"""
+        return self.has_diabetes in ['yes', 'pre', 'gestational']
+    
+    @property
+    def has_high_blood_pressure(self):
+        """Check if customer has high blood pressure"""
+        return self.blood_pressure in ['stage1', 'stage2', 'crisis']
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Customer'
+        verbose_name_plural = 'Customers'

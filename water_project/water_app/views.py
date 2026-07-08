@@ -1,4 +1,4 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect 
 from django.http import JsonResponse, HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -8,6 +8,8 @@ import io
 from decimal import Decimal
 from datetime import datetime, timedelta
 from django.db import models
+from django.contrib import messages
+from .forms import CustomerForm
 
 # ReportLab Import
 try:
@@ -177,10 +179,12 @@ def get_delivery_charge(request, district):
 
 from django.db import transaction
 
+from django.db import transaction
+
 @csrf_exempt
 @require_http_methods(["POST"])
 def create_order(request):
-    """API: Create a new order with stock reduction"""
+    """API: Create a new order - Only product stock reduces, NOT inventory"""
     try:
         data = json.loads(request.body)
         
@@ -197,10 +201,8 @@ def create_order(request):
         total_savings = 0
         total_discount = 0
         
-        # 👇 Start transaction to ensure all or nothing
         with transaction.atomic():
-            
-            # 👇 First, validate stock availability for all items
+            # Validate stock availability from PRODUCT (not inventory)
             for item in items_data:
                 product_id = item.get('id')
                 quantity = int(item.get('quantity', 1))
@@ -219,7 +221,7 @@ def create_order(request):
                             'message': f'Product not found: {item.get("name", "Unknown")}'
                         }, status=400)
             
-            # 👇 Calculate totals and reduce stock
+            # Calculate totals and REDUCE product stock ONLY
             for item in items_data:
                 product_id = item.get('id')
                 price = float(item.get('price', 0))
@@ -232,18 +234,19 @@ def create_order(request):
                     total_savings += savings
                     total_discount += savings
                 
-                # 👇 Reduce product stock
+                # 👇 ONLY product stock reduces (NOT inventory)
                 if product_id:
                     try:
                         product = Product.objects.get(id=product_id)
                         product.stock_quantity -= quantity
                         product.save()
+                        print(f"✅ Product stock reduced: {product.name} - New stock: {product.stock_quantity}")
                     except Product.DoesNotExist:
                         pass
             
             total_amount = subtotal - total_savings + delivery_charge
             
-            # 👇 Create order
+            # Create order
             order = Order.objects.create(
                 customer_name=data.get('customer_name', 'Guest'),
                 customer_email=data.get('customer_email', 'guest@email.com'),
@@ -262,14 +265,23 @@ def create_order(request):
                 payment_status='pending'
             )
             
-            # 👇 Create order items
+            # Create order items
             for item in items_data:
                 price = float(item.get('price', 0))
                 original_price = float(item.get('original_price', price))
                 quantity = int(item.get('quantity', 1))
+                product_id = item.get('id')
+                
+                product = None
+                if product_id:
+                    try:
+                        product = Product.objects.get(id=product_id)
+                    except Product.DoesNotExist:
+                        pass
                 
                 OrderItem.objects.create(
                     order=order,
+                    product=product,
                     product_name=item.get('name', 'Unknown'),
                     product_price=price,
                     original_price=original_price,
@@ -282,7 +294,7 @@ def create_order(request):
         return JsonResponse({
             'status': 'success',
             'order_id': order.order_id,
-            'message': 'Order created successfully',
+            'message': 'Order created successfully. Product stock has been reduced.',
             'subtotal': subtotal,
             'total_savings': total_savings,
             'total_discount': total_discount,
@@ -291,11 +303,13 @@ def create_order(request):
         
     except Exception as e:
         print(f"❌ Order Creation Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
         return JsonResponse({
             'status': 'error',
             'message': str(e)
         }, status=400)
-
+    
 def order_list(request):
     """API: Get all orders with items"""
     orders = Order.objects.all()
@@ -1442,7 +1456,7 @@ def get_product_detail(request, product_id):
 @csrf_exempt
 @staff_member_required
 def create_product(request):
-    """Create a new product"""
+    """Create a new product - Inventory stock REDUCES"""
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
     
@@ -1470,26 +1484,7 @@ def create_product(request):
         except ValueError:
             return JsonResponse({'status': 'error', 'message': 'Invalid price format'}, status=400)
         
-        # Validate discount price - handle empty string properly
-        discount_price_value = None
-        if discount_price and discount_price != '':
-            try:
-                discount_price_value = float(discount_price)
-                if discount_price_value < 0:
-                    return JsonResponse({'status': 'error', 'message': 'Discount price cannot be negative'}, status=400)
-            except ValueError:
-                return JsonResponse({'status': 'error', 'message': 'Invalid discount price format'}, status=400)
-        
-        # Validate discount percentage - handle empty string properly
-        discount_percentage_value = None
-        if discount_percentage and discount_percentage != '':
-            try:
-                discount_percentage_value = int(discount_percentage)
-                if discount_percentage_value < 0 or discount_percentage_value > 100:
-                    return JsonResponse({'status': 'error', 'message': 'Discount percentage must be between 0 and 100'}, status=400)
-            except ValueError:
-                return JsonResponse({'status': 'error', 'message': 'Invalid discount percentage format'}, status=400)
-        
+        # Validate stock quantity
         try:
             stock_quantity = int(stock_quantity)
             if stock_quantity < 0:
@@ -1499,9 +1494,24 @@ def create_product(request):
         
         # Check if product has discount
         is_on_sale = False
-        if (discount_price_value is not None and discount_price_value > 0 and discount_price_value < price) or \
-           (discount_percentage_value is not None and discount_percentage_value > 0):
-            is_on_sale = True
+        discount_price_value = None
+        discount_percentage_value = None
+        
+        if discount_price and discount_price != '':
+            try:
+                discount_price_value = float(discount_price)
+                if discount_price_value > 0 and discount_price_value < price:
+                    is_on_sale = True
+            except:
+                pass
+        
+        if not is_on_sale and discount_percentage and discount_percentage != '':
+            try:
+                discount_percentage_value = int(discount_percentage)
+                if discount_percentage_value > 0 and discount_percentage_value <= 100:
+                    is_on_sale = True
+            except:
+                pass
         
         # Create product
         product = Product(
@@ -1513,40 +1523,71 @@ def create_product(request):
             stock_quantity=stock_quantity,
             is_active=is_active,
             special_offer=special_offer if special_offer else None,
-            is_on_sale=is_on_sale,  # 👈 Added this
+            is_on_sale=is_on_sale,
         )
         
         # Handle image upload
         if 'image' in request.FILES:
             image_file = request.FILES['image']
-            # Validate file type
             if image_file.content_type not in ['image/jpeg', 'image/png', 'image/gif', 'image/webp']:
                 return JsonResponse({'status': 'error', 'message': 'Invalid image format. Only JPEG, PNG, GIF, WEBP allowed.'}, status=400)
-            # Validate file size (2MB)
             if image_file.size > 2 * 1024 * 1024:
                 return JsonResponse({'status': 'error', 'message': 'Image size must be less than 2MB'}, status=400)
-            
             product.image = image_file
         
         product.save()
         
+        # ✅ Inventory stock REDUCES (if stock_quantity > 0)
+        if stock_quantity > 0:
+            try:
+                from water_app.models import Inventory
+                from django.db import models
+
+                # Get current inventory total
+                inventory_total = Inventory.objects.filter(product=product).aggregate(
+                    total=models.Sum('quantity')
+                )['total'] or 0
+
+                # Prevent creating product with more stock than available in inventory
+                if inventory_total < stock_quantity:
+                    product.delete()
+                    return JsonResponse({'status': 'error', 'message': f'Insufficient inventory. Available inventory: {inventory_total}'}, status=400)
+
+                # Create inventory movement - STOCK TAKEN FROM INVENTORY
+                Inventory.objects.create(
+                    product=product,
+                    quantity=-stock_quantity,  # Negative: Stock taken from inventory
+                    previous_stock=inventory_total,
+                    new_stock=inventory_total - stock_quantity,
+                    movement_type='adjustment',
+                    reference=f'Product Created: {product.id}',
+                    notes=f'Stock TAKEN from inventory for product: {product.name}. Quantity: {stock_quantity}',
+                    user=request.user if request.user.is_authenticated else None
+                )
+
+                print(f"✅ Inventory stock REDUCED by {stock_quantity} for product: {product.name}")
+                print(f"   New inventory total: {inventory_total - stock_quantity}")
+
+            except Exception as e:
+                print(f"⚠️ Inventory update skipped: {str(e)}")
+        
         return JsonResponse({
             'status': 'success',
-            'message': 'Product created successfully',
-            'product_id': product.id
+            'message': f'Product "{name}" created successfully. Stock taken from inventory: {stock_quantity}',
+            'product_id': product.id,
         })
         
     except Exception as e:
-        print(f"Error creating product: {str(e)}")
+        print(f"❌ Error creating product: {str(e)}")
         import traceback
         traceback.print_exc()
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
-
+    
 
 @csrf_exempt
 @staff_member_required
 def update_product(request, product_id):
-    """Update an existing product"""
+    """Update an existing product - Inventory adjusts accordingly"""
     if request.method not in ['PUT', 'POST']:
         return JsonResponse({'error': 'Method not allowed'}, status=405)
     
@@ -1576,26 +1617,6 @@ def update_product(request, product_id):
         except ValueError:
             return JsonResponse({'status': 'error', 'message': 'Invalid price format'}, status=400)
         
-        # Validate discount price - handle empty string properly
-        discount_price_value = None
-        if discount_price and discount_price != '':
-            try:
-                discount_price_value = float(discount_price)
-                if discount_price_value < 0:
-                    return JsonResponse({'status': 'error', 'message': 'Discount price cannot be negative'}, status=400)
-            except ValueError:
-                return JsonResponse({'status': 'error', 'message': 'Invalid discount price format'}, status=400)
-        
-        # Validate discount percentage - handle empty string properly
-        discount_percentage_value = None
-        if discount_percentage and discount_percentage != '':
-            try:
-                discount_percentage_value = int(discount_percentage)
-                if discount_percentage_value < 0 or discount_percentage_value > 100:
-                    return JsonResponse({'status': 'error', 'message': 'Discount percentage must be between 0 and 100'}, status=400)
-            except ValueError:
-                return JsonResponse({'status': 'error', 'message': 'Invalid discount percentage format'}, status=400)
-        
         try:
             stock_quantity = int(stock_quantity)
             if stock_quantity < 0:
@@ -1603,12 +1624,45 @@ def update_product(request, product_id):
         except ValueError:
             stock_quantity = 0
         
+        # Store old stock
+        old_stock = product.stock_quantity
+        
         # Check if product has discount
         is_on_sale = False
-        if (discount_price_value is not None and discount_price_value > 0 and discount_price_value < price) or \
-           (discount_percentage_value is not None and discount_percentage_value > 0):
-            is_on_sale = True
+        discount_price_value = None
+        discount_percentage_value = None
         
+        if discount_price and discount_price != '':
+            try:
+                discount_price_value = float(discount_price)
+                if discount_price_value > 0 and discount_price_value < price:
+                    is_on_sale = True
+            except:
+                pass
+        
+        if not is_on_sale and discount_percentage and discount_percentage != '':
+            try:
+                discount_percentage_value = int(discount_percentage)
+                if discount_percentage_value > 0 and discount_percentage_value <= 100:
+                    is_on_sale = True
+            except:
+                pass
+        
+        # Determine quantity difference before saving
+        quantity_diff = stock_quantity - old_stock
+
+        # If product stock would increase, ensure inventory has enough BEFORE saving
+        if quantity_diff > 0:
+            try:
+                from water_app.models import Inventory
+                inventory_total_check = Inventory.objects.filter(product=product).aggregate(
+                    total=models.Sum('quantity')
+                )['total'] or 0
+                if inventory_total_check < quantity_diff:
+                    return JsonResponse({'status': 'error', 'message': f'Insufficient inventory. Available inventory: {inventory_total_check}'}, status=400)
+            except Exception as e:
+                print(f"⚠️ Inventory check skipped: {str(e)}")
+
         # Update product
         product.name = name
         product.description = description
@@ -1618,28 +1672,17 @@ def update_product(request, product_id):
         product.stock_quantity = stock_quantity
         product.is_active = is_active
         product.special_offer = special_offer if special_offer else None
-        product.is_on_sale = is_on_sale  # 👈 Added this
+        product.is_on_sale = is_on_sale
         
         # Handle image upload
         if 'image' in request.FILES:
-            # Delete old image if exists
             if product.image:
                 try:
                     default_storage.delete(product.image.path)
                 except:
                     pass
-            
-            image_file = request.FILES['image']
-            # Validate file type
-            if image_file.content_type not in ['image/jpeg', 'image/png', 'image/gif', 'image/webp']:
-                return JsonResponse({'status': 'error', 'message': 'Invalid image format. Only JPEG, PNG, GIF, WEBP allowed.'}, status=400)
-            # Validate file size (2MB)
-            if image_file.size > 2 * 1024 * 1024:
-                return JsonResponse({'status': 'error', 'message': 'Image size must be less than 2MB'}, status=400)
-            
-            product.image = image_file
+            product.image = request.FILES['image']
         elif 'remove_image' in request.POST and request.POST.get('remove_image') == 'true':
-            # Remove image
             if product.image:
                 try:
                     default_storage.delete(product.image.path)
@@ -1649,19 +1692,54 @@ def update_product(request, product_id):
         
         product.save()
         
+        # 👇 Inventory adjusts when product stock changes
+        if stock_quantity != old_stock:
+            try:
+                from water_app.models import Inventory
+                quantity_diff = stock_quantity - old_stock
+
+                # Get current inventory total
+                inventory_total = Inventory.objects.filter(product=product).aggregate(
+                    total=models.Sum('quantity')
+                )['total'] or 0
+
+                # If product stock increases (quantity_diff > 0), ensure inventory has enough
+                if quantity_diff > 0 and inventory_total < quantity_diff:
+                    return JsonResponse({'status': 'error', 'message': f'Insufficient inventory. Available inventory: {inventory_total}'}, status=400)
+
+                # Inventory changes opposite to product stock
+                # If product stock increases, inventory decreases (stock taken)
+                # If product stock decreases, inventory increases (stock returned)
+                inventory_change = -quantity_diff
+
+                Inventory.objects.create(
+                    product=product,
+                    quantity=inventory_change,
+                    previous_stock=inventory_total,
+                    new_stock=inventory_total + inventory_change,
+                    movement_type='adjustment',
+                    reference=f'Product Updated: {product.id}',
+                    notes=f'Stock changed from {old_stock} to {stock_quantity}. Inventory adjusted by {inventory_change}',
+                    user=request.user if request.user.is_authenticated else None
+                )
+
+                print(f"✅ Inventory adjusted: {product.name} - Change: {inventory_change}")
+
+            except Exception as e:
+                print(f"⚠️ Inventory update skipped: {str(e)}")
+        
         return JsonResponse({
             'status': 'success',
-            'message': 'Product updated successfully',
+            'message': f'Product "{name}" updated successfully.',
             'product_id': product.id
         })
         
     except Exception as e:
-        print(f"Error updating product: {str(e)}")
+        print(f"❌ Error updating product: {str(e)}")
         import traceback
         traceback.print_exc()
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
-
-
+    
 @csrf_exempt
 @staff_member_required
 def delete_product(request, product_id):
@@ -2245,3 +2323,523 @@ def export_districts_pdf(request):
     buffer.seek(0)
     response.write(buffer.getvalue())
     return response
+
+
+@staff_member_required
+def admin_inventory(request):
+    """Admin Inventory Management Page"""
+    products = Product.objects.all().order_by('-created_at')
+    
+    # Calculate inventory total for each product
+    from django.db import models
+    from water_app.models import Inventory
+    
+    products_with_inventory = []
+    for product in products:
+        inventory_total = Inventory.objects.filter(product=product).aggregate(
+            total=models.Sum('quantity')
+        )['total'] or 0
+        
+        products_with_inventory.append({
+            'id': product.id,
+            'name': product.name,
+            'description': product.description,
+            'price': float(product.price),
+            'stock_quantity': product.stock_quantity,
+            'inventory_total': inventory_total,  # 👈 Inventory total পাঠান
+            'is_on_sale': product.is_on_sale,
+            'discount_price': float(product.discount_price) if product.discount_price else None,
+            'image_url': product.image.url if product.image else None,
+            'created_at': product.created_at.isoformat() if product.created_at else None,
+        })
+    
+    context = {
+        'products': products,
+        'products_json': json.dumps(products_with_inventory),
+        'total_products': products.count(),
+        'in_stock_products': products.filter(stock_quantity__gt=20).count(),
+        'low_stock_products': products.filter(stock_quantity__gte=1, stock_quantity__lte=20).count(),
+        'out_of_stock_products': products.filter(stock_quantity=0).count(),
+        'total_orders': Order.objects.count(),
+        'total_districts': DistrictDeliveryCharge.objects.count(),
+        'total_customers': 0,
+    }
+    return render(request, 'admin_inventory.html', context)
+
+
+@csrf_exempt
+@staff_member_required
+def add_stock(request, product_id):
+    """Add stock to inventory - ONLY Inventory stock INCREASES"""
+    print("=" * 50)
+    print("🔵 add_stock called")
+    print(f"   Product ID: {product_id}")
+    print(f"   Request method: {request.method}")
+    
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        # Get product
+        product = get_object_or_404(Product, id=product_id)
+        print(f"   Product: {product.name}")
+        
+        # Get quantity from request body
+        try:
+            data = json.loads(request.body)
+            quantity = data.get('quantity', 0)
+            print(f"   Quantity from JSON: {quantity}")
+        except json.JSONDecodeError:
+            # If JSON parsing fails, try form data
+            quantity = request.POST.get('quantity', 0)
+            print(f"   Quantity from POST: {quantity}")
+        
+        try:
+            quantity = int(quantity)
+        except:
+            quantity = 0
+        
+        print(f"   Final quantity: {quantity}")
+        
+        if quantity <= 0:
+            return JsonResponse({'status': 'error', 'message': 'Quantity must be greater than 0'}, status=400)
+        
+        # ============================================
+        # ✅ Update Inventory
+        # ============================================
+        from water_app.models import Inventory
+        from django.db import models
+        
+        # Get current inventory total
+        inventory_total = Inventory.objects.filter(product=product).aggregate(
+            total=models.Sum('quantity')
+        )['total'] or 0
+        
+        print(f"   Current inventory total: {inventory_total}")
+        
+        # Create inventory movement
+        inventory_movement = Inventory.objects.create(
+            product=product,
+            quantity=quantity,
+            previous_stock=inventory_total,
+            new_stock=inventory_total + quantity,
+            movement_type='restock',
+            reference=f'Manual Restock: {product.id}',
+            notes=f'Added {quantity} units to inventory. Product stock: {product.stock_quantity}',
+            user=request.user if request.user.is_authenticated else None
+        )
+        
+        print(f"   Inventory movement created: ID {inventory_movement.id}")
+        
+        # Verify
+        new_inventory_total = Inventory.objects.filter(product=product).aggregate(
+            total=models.Sum('quantity')
+        )['total'] or 0
+        
+        print(f"✅ Success!")
+        print(f"   Old inventory: {inventory_total}")
+        print(f"   New inventory: {new_inventory_total}")
+        print(f"   Product stock: {product.stock_quantity} (unchanged)")
+        print("=" * 50)
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': f'Added {quantity} units to inventory',
+            'product_stock': product.stock_quantity,
+            'inventory_added': quantity,
+            'inventory_total': new_inventory_total,
+            'movement_id': inventory_movement.id
+        })
+        
+    except Exception as e:
+        print(f"❌ Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        print("=" * 50)
+        return JsonResponse({
+            'status': 'error', 
+            'message': str(e)
+        }, status=400)
+    
+@staff_member_required
+def export_inventory_excel(request):
+    """Export inventory as Excel file"""
+    try:
+        import openpyxl
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    except ImportError:
+        return HttpResponse("⚠️ openpyxl not installed. Please install: pip install openpyxl", status=500)
+    
+    try:
+        products = Product.objects.all().order_by('-created_at')
+        
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Inventory Report"
+        
+        # Styles
+        header_font = Font(name='Arial', size=10, bold=True, color='FFFFFF')
+        header_fill = PatternFill(start_color='1a5276', end_color='1a5276', fill_type='solid')
+        header_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        border = Border(
+            left=Side(style='thin', color='000000'),
+            right=Side(style='thin', color='000000'),
+            top=Side(style='thin', color='000000'),
+            bottom=Side(style='thin', color='000000')
+        )
+        
+        # Title
+        ws.merge_cells('A1:G1')
+        title_cell = ws['A1']
+        title_cell.value = "📦 Aquanimity SuperWater - Inventory Report"
+        title_cell.font = Font(name='Arial', size=18, bold=True, color='1a5276')
+        title_cell.alignment = Alignment(horizontal='center', vertical='center')
+        
+        ws.merge_cells('A2:G2')
+        subtitle_cell = ws['A2']
+        subtitle_cell.value = f"Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')} | Total Products: {products.count()}"
+        subtitle_cell.font = Font(name='Arial', size=10, color='666666')
+        subtitle_cell.alignment = Alignment(horizontal='center', vertical='center')
+        
+        # Headers
+        headers = ['Sl No', 'Product Name', 'Price (৳)', 'Stock Quantity', 'Stock Value (৳)', 'Status', 'Created At']
+        
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=4, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_alignment
+            cell.border = border
+        
+        # Data
+        row_num = 5
+        total_stock_value = 0
+        total_stock_quantity = 0
+        
+        for idx, product in enumerate(products, 1):
+            stock_value = float(product.price) * product.stock_quantity
+            total_stock_value += stock_value
+            total_stock_quantity += product.stock_quantity
+            
+            # Determine status
+            if product.stock_quantity > 20:
+                status = 'In Stock'
+            elif product.stock_quantity > 0:
+                status = 'Low Stock'
+            else:
+                status = 'Out of Stock'
+            
+            row_data = [
+                idx,
+                product.name,
+                float(product.price),
+                product.stock_quantity,
+                stock_value,
+                status,
+                product.created_at.strftime('%Y-%m-%d %H:%M') if product.created_at else '-'
+            ]
+            
+            for col, value in enumerate(row_data, 1):
+                cell = ws.cell(row=row_num, column=col, value=value)
+                cell.alignment = Alignment(horizontal='left' if col not in [1, 4] else 'center', vertical='center', wrap_text=True)
+                cell.border = border
+                
+                # Color coding for stock status
+                if col == 6:  # Status column
+                    if value == 'In Stock':
+                        cell.fill = PatternFill(start_color='d4edda', end_color='d4edda', fill_type='solid')
+                        cell.font = Font(color='155724')
+                    elif value == 'Low Stock':
+                        cell.fill = PatternFill(start_color='fff3cd', end_color='fff3cd', fill_type='solid')
+                        cell.font = Font(color='856404')
+                    else:
+                        cell.fill = PatternFill(start_color='f8d7da', end_color='f8d7da', fill_type='solid')
+                        cell.font = Font(color='721c24')
+            
+            row_num += 1
+        
+        # Column widths
+        widths = {'A': 6, 'B': 35, 'C': 14, 'D': 12, 'E': 16, 'F': 12, 'G': 18}
+        for col, width in widths.items():
+            ws.column_dimensions[col].width = width
+        
+        ws.freeze_panes = 'A5'
+        
+        # Summary Statistics
+        summary_row = row_num + 2
+        ws.merge_cells(f'A{summary_row}:D{summary_row}')
+        summary_title = ws.cell(row=summary_row, column=1)
+        summary_title.value = "📊 Summary Statistics"
+        summary_title.font = Font(name='Arial', size=12, bold=True)
+        
+        in_stock_count = products.filter(stock_quantity__gt=20).count()
+        low_stock_count = products.filter(stock_quantity__gte=1, stock_quantity__lte=20).count()
+        out_of_stock_count = products.filter(stock_quantity=0).count()
+        
+        summary_data = [
+            ['Total Products', str(products.count())],
+            ['Total Stock Quantity', str(total_stock_quantity)],
+            ['Total Stock Value', f"৳ {total_stock_value:.2f}"],
+            ['In Stock', str(in_stock_count)],
+            ['Low Stock', str(low_stock_count)],
+            ['Out of Stock', str(out_of_stock_count)],
+        ]
+        
+        for idx, (label, value) in enumerate(summary_data):
+            row = summary_row + idx + 1
+            ws.cell(row=row, column=1, value=label).font = Font(bold=True)
+            ws.cell(row=row, column=2, value=value)
+        
+        # Footer
+        footer_row = summary_row + len(summary_data) + 2
+        ws.merge_cells(f'A{footer_row}:G{footer_row}')
+        footer_cell = ws.cell(row=footer_row, column=1)
+        footer_cell.value = "© 2026 Aquanimity Super Water. All rights reserved."
+        footer_cell.font = Font(name='Arial', size=9, color='999999')
+        footer_cell.alignment = Alignment(horizontal='center')
+        
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        filename = f'inventory_report_{datetime.now().strftime("%Y%m%d_%H%M")}.xlsx'
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        wb.save(response)
+        return response
+        
+    except Exception as e:
+        print(f"❌ Excel Export Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return HttpResponse(f"Error generating Excel: {str(e)}", status=500)
+
+
+@staff_member_required
+def export_inventory_pdf(request):
+    """Export inventory as PDF file with creation date"""
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import landscape, A4
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import inch
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+    except ImportError:
+        return HttpResponse("⚠️ ReportLab not installed. Please install: pip install reportlab", status=500)
+    
+    try:
+        products = Product.objects.all().order_by('-created_at')
+        
+        response = HttpResponse(content_type='application/pdf')
+        filename = f'inventory_report_{datetime.now().strftime("%Y%m%d_%H%M")}.pdf'
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+        
+        styles = getSampleStyleSheet()
+        
+        # Custom styles
+        title_style = ParagraphStyle(
+            'TitleStyle', 
+            parent=styles['Heading1'], 
+            fontSize=18, 
+            textColor=colors.HexColor('#1a5276'), 
+            alignment=TA_CENTER, 
+            spaceAfter=12, 
+            fontName='Helvetica-Bold'
+        )
+        
+        subtitle_style = ParagraphStyle(
+            'SubtitleStyle', 
+            parent=styles['Normal'], 
+            fontSize=10, 
+            textColor=colors.HexColor('#666666'), 
+            alignment=TA_CENTER, 
+            spaceAfter=16
+        )
+        
+        story = []
+        
+        # Title
+        story.append(Paragraph("📦 Aquanimity SuperWater - Inventory Report", title_style))
+        story.append(Paragraph(f"Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", subtitle_style))
+        story.append(Paragraph(f"Total Products: {products.count()}", subtitle_style))
+        story.append(Spacer(1, 0.2*inch))
+        
+        # Summary
+        total_stock_value = sum(float(p.price) * p.stock_quantity for p in products)
+        total_stock = sum(p.stock_quantity for p in products)
+        in_stock = products.filter(stock_quantity__gt=20).count()
+        low_stock = products.filter(stock_quantity__gte=1, stock_quantity__lte=20).count()
+        out_of_stock = products.filter(stock_quantity=0).count()
+        
+        summary_data = [
+            ['📊 INVENTORY SUMMARY', ''],
+            ['Total Products', str(products.count())],
+            ['Total Stock Quantity', str(total_stock)],
+            ['Total Stock Value', f"৳ {total_stock_value:.2f}"],
+            ['In Stock (20+)', str(in_stock)],
+            ['Low Stock (1-20)', str(low_stock)],
+            ['Out of Stock', str(out_of_stock)],
+        ]
+        
+        summary_table = Table(summary_data, colWidths=[2.5*inch, 2.5*inch])
+        summary_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#28a745')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 10),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('GRID', (0, 1), (-1, -1), 1, colors.HexColor('#ddd')),
+            ('PADDING', (0, 0), (-1, -1), 6),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f8f9fa')),
+            ('BACKGROUND', (0, 2), (-1, 2), colors.HexColor('#eaf2f8')),
+            ('BACKGROUND', (0, 4), (-1, 4), colors.HexColor('#eaf2f8')),
+        ]))
+        
+        story.append(summary_table)
+        story.append(Spacer(1, 0.3*inch))
+        
+        # Table - Added "Created Date" column
+        table_data = [['Sl', 'Product Name', 'Price (৳)', 'Stock', 'Stock Value (৳)', 'Status', 'Created Date']]
+        
+        for idx, product in enumerate(products[:100], 1):
+            stock_value = float(product.price) * product.stock_quantity
+            if product.stock_quantity > 20:
+                status = 'In Stock'
+            elif product.stock_quantity > 0:
+                status = 'Low Stock'
+            else:
+                status = 'Out of Stock'
+            
+            # Format created date
+            created_date = product.created_at.strftime('%d %b %Y') if product.created_at else '-'
+            
+            table_data.append([
+                str(idx),
+                product.name[:25] + ('...' if len(product.name) > 25 else ''),
+                f"{float(product.price):.2f}",
+                str(product.stock_quantity),
+                f"{stock_value:.2f}",
+                status,
+                created_date
+            ])
+        
+        if products.count() > 100:
+            table_data.append(['...', f'... and {products.count() - 100} more products', '', '', '', '', ''])
+        
+        # Updated column widths with new column
+        table = Table(table_data, colWidths=[0.4*inch, 2.0*inch, 0.7*inch, 0.5*inch, 0.9*inch, 0.7*inch, 0.9*inch])
+        
+        # Apply table styles
+        table_style = TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a5276')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 7),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 5),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f8f9fa')),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#ddd')),
+            ('FONTSIZE', (0, 1), (-1, -1), 6),
+            ('ALIGN', (0, 0), (0, -1), 'CENTER'),
+            ('ALIGN', (3, 1), (3, -1), 'CENTER'),
+            ('ALIGN', (2, 1), (2, -1), 'RIGHT'),
+            ('ALIGN', (4, 1), (4, -1), 'RIGHT'),
+            ('ALIGN', (6, 1), (6, -1), 'CENTER'),
+            ('PADDING', (0, 0), (-1, -1), 2),
+        ])
+        
+        # Color coding for status column (column index 5)
+        for row_idx in range(1, len(table_data)):
+            if len(table_data[row_idx]) > 5:
+                status = table_data[row_idx][5]
+                if status == 'In Stock':
+                    table_style.add('BACKGROUND', (5, row_idx), (5, row_idx), colors.HexColor('#d4edda'))
+                    table_style.add('TEXTCOLOR', (5, row_idx), (5, row_idx), colors.HexColor('#155724'))
+                elif status == 'Low Stock':
+                    table_style.add('BACKGROUND', (5, row_idx), (5, row_idx), colors.HexColor('#fff3cd'))
+                    table_style.add('TEXTCOLOR', (5, row_idx), (5, row_idx), colors.HexColor('#856404'))
+                else:
+                    table_style.add('BACKGROUND', (5, row_idx), (5, row_idx), colors.HexColor('#f8d7da'))
+                    table_style.add('TEXTCOLOR', (5, row_idx), (5, row_idx), colors.HexColor('#721c24'))
+        
+        table.setStyle(table_style)
+        story.append(table)
+        story.append(Spacer(1, 0.3*inch))
+        
+        # Footer
+        footer_style = ParagraphStyle(
+            'FooterStyle', 
+            parent=styles['Normal'], 
+            fontSize=9, 
+            textColor=colors.HexColor('#999999'), 
+            alignment=TA_CENTER
+        )
+        story.append(Paragraph("© 2026 Aquanimity Super Water. All rights reserved.", footer_style))
+        
+        # Build PDF
+        doc.build(story)
+        buffer.seek(0)
+        response.write(buffer.getvalue())
+        return response
+        
+    except Exception as e:
+        print(f"❌ PDF Export Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return HttpResponse(f"Error generating PDF: {str(e)}", status=500)
+    
+def customer_form(request):
+    """View to display and handle customer registration form"""
+    if request.method == 'POST':
+        form = CustomerForm(request.POST)
+        if form.is_valid():
+            customer = form.save()
+            messages.success(request, f'✅ Customer {customer.name} added successfully!')
+            return redirect('customer_success')  # ✅ Fixed: Added 'redirect'
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = CustomerForm()
+    
+    return render(request, 'customer_form.html', {'form': form})
+
+def customer_success(request):
+    """Success page after customer registration"""
+    return render(request, 'customer_success.html')
+
+def customer_list(request):
+    """View to display all customers"""
+    customers = Customer.objects.all()
+    return render(request, 'customer_list.html', {'customers': customers})
+
+def customer_detail(request, customer_id):
+    """View to display a specific customer's details including health info"""
+    customer = get_object_or_404(Customer, id=customer_id)
+    # Get all orders for this customer
+    orders = Order.objects.filter(customer_email=customer.email).order_by('-created_at')
+    
+    # Health status indicators
+    health_summary = {
+        'diabetes': customer.get_diabetes_display(),
+        'blood_pressure': customer.get_blood_pressure_display(),
+        'is_diabetic': customer.is_diabetic,
+        'has_high_bp': customer.has_high_blood_pressure,
+    }
+    
+    return render(request, 'customer_detail.html', {
+        'customer': customer,
+        'orders': orders,
+        'health_summary': health_summary
+    })
+
+def customer_delete(request, customer_id):
+    """Delete a customer"""
+    customer = get_object_or_404(Customer, id=customer_id)
+    if request.method == 'POST':
+        customer_name = customer.name
+        customer.delete()
+        messages.success(request, f'✅ Customer {customer_name} deleted successfully!')
+        return redirect('customer_list')  # ✅ Fixed: Added 'redirect'
+    return render(request, 'customer_confirm_delete.html', {'customer': customer})

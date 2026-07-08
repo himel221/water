@@ -49,4 +49,18 @@ urlpatterns = [
     path('api/delivery/<int:district_id>/toggle/', views.toggle_district_status, name='toggle_district_status'),
     path('api/delivery/export/excel/', views.export_districts_excel, name='export_districts_excel'),
     path('api/delivery/export/pdf/', views.export_districts_pdf, name='export_districts_pdf'),
+
+    # Add these URLs to water_app/urls.py
+
+    path('admin-inventory/', views.admin_inventory, name='admin_inventory'),
+    path('api/inventory/<int:product_id>/add-stock/', views.add_stock, name='add_stock'),
+    path('api/inventory/export/excel/', views.export_inventory_excel, name='export_inventory_excel'),
+    path('api/inventory/export/pdf/', views.export_inventory_pdf, name='export_inventory_pdf'),
+
+                    # Customer URLs
+    path('customer/add/', views.customer_form, name='customer_form'),
+    path('customer/success/', views.customer_success, name='customer_success'),
+    path('customer/list/', views.customer_list, name='customer_list'),
+    path('customer/<int:customer_id>/', views.customer_detail, name='customer_detail'),
+    path('customer/<int:customer_id>/delete/', views.customer_delete, name='customer_delete'),
 ]
