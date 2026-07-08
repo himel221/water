@@ -175,10 +175,12 @@ def get_delivery_charge(request, district):
         }, status=500)
 
 
+from django.db import transaction
+
 @csrf_exempt
 @require_http_methods(["POST"])
 def create_order(request):
-    """API: Create a new order"""
+    """API: Create a new order with stock reduction"""
     try:
         data = json.loads(request.body)
         
@@ -195,52 +197,87 @@ def create_order(request):
         total_savings = 0
         total_discount = 0
         
-        for item in items_data:
-            price = float(item.get('price', 0))
-            original_price = float(item.get('original_price', price))
-            quantity = int(item.get('quantity', 1))
+        # 👇 Start transaction to ensure all or nothing
+        with transaction.atomic():
             
-            subtotal += original_price * quantity
-            savings = (original_price - price) * quantity
-            if savings > 0:
-                total_savings += savings
-                total_discount += savings
-        
-        total_amount = subtotal - total_savings + delivery_charge
-        
-        order = Order.objects.create(
-            customer_name=data.get('customer_name', 'Guest'),
-            customer_email=data.get('customer_email', 'guest@email.com'),
-            customer_phone=data.get('customer_phone', ''),
-            customer_address=data.get('customer_address', ''),
-            customer_district=district,
-            delivery_charge=delivery_charge,
-            delivery_zone=delivery_zone,
-            subtotal=subtotal,
-            total_savings=total_savings,
-            total_discount=total_discount,
-            total_amount=total_amount,
-            payment_method=data.get('payment_method', 'Cash on Delivery'),
-            transaction_id=data.get('transaction_id', ''),
-            status='pending',
-            payment_status='pending'
-        )
-        
-        for item in items_data:
-            price = float(item.get('price', 0))
-            original_price = float(item.get('original_price', price))
-            quantity = int(item.get('quantity', 1))
+            # 👇 First, validate stock availability for all items
+            for item in items_data:
+                product_id = item.get('id')
+                quantity = int(item.get('quantity', 1))
+                
+                if product_id:
+                    try:
+                        product = Product.objects.select_for_update().get(id=product_id)
+                        if product.stock_quantity < quantity:
+                            return JsonResponse({
+                                'status': 'error',
+                                'message': f'Insufficient stock for {product.name}. Available: {product.stock_quantity}'
+                            }, status=400)
+                    except Product.DoesNotExist:
+                        return JsonResponse({
+                            'status': 'error',
+                            'message': f'Product not found: {item.get("name", "Unknown")}'
+                        }, status=400)
             
-            OrderItem.objects.create(
-                order=order,
-                product_name=item.get('name', 'Unknown'),
-                product_price=price,
-                original_price=original_price,
-                quantity=quantity,
-                discount_percentage=int(item.get('discount_percentage', 0)),
-                special_offer=item.get('special_offer', ''),
-                total_price=price * quantity
+            # 👇 Calculate totals and reduce stock
+            for item in items_data:
+                product_id = item.get('id')
+                price = float(item.get('price', 0))
+                original_price = float(item.get('original_price', price))
+                quantity = int(item.get('quantity', 1))
+                
+                subtotal += original_price * quantity
+                savings = (original_price - price) * quantity
+                if savings > 0:
+                    total_savings += savings
+                    total_discount += savings
+                
+                # 👇 Reduce product stock
+                if product_id:
+                    try:
+                        product = Product.objects.get(id=product_id)
+                        product.stock_quantity -= quantity
+                        product.save()
+                    except Product.DoesNotExist:
+                        pass
+            
+            total_amount = subtotal - total_savings + delivery_charge
+            
+            # 👇 Create order
+            order = Order.objects.create(
+                customer_name=data.get('customer_name', 'Guest'),
+                customer_email=data.get('customer_email', 'guest@email.com'),
+                customer_phone=data.get('customer_phone', ''),
+                customer_address=data.get('customer_address', ''),
+                customer_district=district,
+                delivery_charge=delivery_charge,
+                delivery_zone=delivery_zone,
+                subtotal=subtotal,
+                total_savings=total_savings,
+                total_discount=total_discount,
+                total_amount=total_amount,
+                payment_method=data.get('payment_method', 'Cash on Delivery'),
+                transaction_id=data.get('transaction_id', ''),
+                status='pending',
+                payment_status='pending'
             )
+            
+            # 👇 Create order items
+            for item in items_data:
+                price = float(item.get('price', 0))
+                original_price = float(item.get('original_price', price))
+                quantity = int(item.get('quantity', 1))
+                
+                OrderItem.objects.create(
+                    order=order,
+                    product_name=item.get('name', 'Unknown'),
+                    product_price=price,
+                    original_price=original_price,
+                    quantity=quantity,
+                    discount_percentage=int(item.get('discount_percentage', 0)),
+                    special_offer=item.get('special_offer', ''),
+                    total_price=price * quantity
+                )
         
         return JsonResponse({
             'status': 'success',
@@ -258,7 +295,6 @@ def create_order(request):
             'status': 'error',
             'message': str(e)
         }, status=400)
-
 
 def order_list(request):
     """API: Get all orders with items"""

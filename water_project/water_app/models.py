@@ -156,6 +156,7 @@ class DistrictDeliveryCharge(models.Model):
 
 class OrderItem(models.Model):
     order = models.ForeignKey('Order', on_delete=models.CASCADE, related_name='order_items')
+    product = models.ForeignKey('Product', on_delete=models.SET_NULL, null=True, blank=True)  # 👈 Added
     product_name = models.CharField(max_length=200)
     product_price = models.DecimalField(max_digits=10, decimal_places=2)
     original_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -194,10 +195,9 @@ class Order(models.Model):
     delivery_charge = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     delivery_zone = models.CharField(max_length=100, blank=True, null=True)
     
-    # ✅ Order Summary Fields
     subtotal = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total_savings = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    total_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # ✅ Total Discount যোগ করা হয়েছে
+    total_discount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
@@ -228,7 +228,6 @@ class Order(models.Model):
         return sum(item.quantity for item in self.order_items.all())
     
     def calculate_total_discount(self):
-        """Calculate total discount for the order"""
         total_discount = 0
         for item in self.order_items.all():
             if item.original_price and item.original_price > item.product_price:
@@ -236,7 +235,6 @@ class Order(models.Model):
         return total_discount
     
     def parse_offer_requirements(self, offer_text):
-        """Parse offer text and return requirements dynamically"""
         offer_text = offer_text.lower()
         requirements = {
             'min_quantity': 1,
@@ -246,7 +244,6 @@ class Order(models.Model):
             'description': offer_text
         }
         
-        # Buy X Get Y Free
         buy_match = re.search(r'buy\s*(\d+)\s*get\s*(\d+)\s*free', offer_text)
         if buy_match:
             requirements['min_quantity'] = int(buy_match.group(1))
@@ -254,7 +251,6 @@ class Order(models.Model):
             requirements['free_items'] = int(buy_match.group(2))
             return requirements
         
-        # Buy X Get Y Off
         buy_get_match = re.search(r'buy\s*(\d+)\s*get\s*(\d+)\s*(?:free|off)', offer_text)
         if buy_get_match:
             requirements['min_quantity'] = int(buy_get_match.group(1))
@@ -262,7 +258,6 @@ class Order(models.Model):
             requirements['free_items'] = int(buy_get_match.group(2))
             return requirements
         
-        # X% OFF on Y+ items
         percent_match = re.search(r'(\d+)%\s*off\s*on\s*(\d+)\s*\+', offer_text)
         if percent_match:
             requirements['min_quantity'] = int(percent_match.group(2))
@@ -270,7 +265,6 @@ class Order(models.Model):
             requirements['offer_type'] = 'percent_off'
             return requirements
         
-        # X% OFF
         percent_only = re.search(r'(\d+)%\s*off', offer_text)
         if percent_only:
             requirements['min_quantity'] = 1
@@ -278,7 +272,6 @@ class Order(models.Model):
             requirements['offer_type'] = 'percent_off'
             return requirements
         
-        # $X OFF on $Y+
         amount_match = re.search(r'\$?(\d+)\s*off\s*on\s*\$?(\d+)\s*\+', offer_text)
         if amount_match:
             requirements['min_amount'] = float(amount_match.group(2))
@@ -286,12 +279,10 @@ class Order(models.Model):
             requirements['offer_type'] = 'amount_off'
             return requirements
         
-        # Free Shipping
         if 'free shipping' in offer_text or 'free delivery' in offer_text:
             requirements['offer_type'] = 'free_shipping'
             return requirements
         
-        # Combo Offers
         if 'combo' in offer_text:
             requirements['offer_type'] = 'combo'
             combo_match = re.search(r'(\d+)\s*for\s*\$?(\d+)', offer_text)
@@ -300,7 +291,6 @@ class Order(models.Model):
                 requirements['combo_price'] = float(combo_match.group(2))
             return requirements
         
-        # Flat Discount
         if 'flat' in offer_text:
             flat_match = re.search(r'flat\s*(\d+)%\s*off', offer_text)
             if flat_match:
@@ -311,7 +301,6 @@ class Order(models.Model):
         return requirements
     
     def is_eligible_for_offer(self):
-        """Check if order meets special offer requirements"""
         for item in self.order_items.all():
             if item.special_offer:
                 requirements = self.parse_offer_requirements(item.special_offer)
@@ -337,7 +326,6 @@ class Order(models.Model):
         return False
     
     def get_offer_status(self):
-        """Get detailed offer status with eligibility check"""
         offers = []
         for item in self.order_items.all():
             if item.special_offer:
@@ -371,7 +359,6 @@ class Order(models.Model):
         return offers
     
     def get_offer_requirements(self):
-        """Get offer requirements dynamically"""
         requirements = []
         for item in self.order_items.all():
             if item.special_offer:
@@ -450,11 +437,11 @@ class Order(models.Model):
                     })
         
         return requirements
+    
     @property
     def special_offers_list(self):
-        """Get list of special offers applied to this order"""
         offers = []
         for item in self.order_items.all():
             if item.special_offer:
                 offers.append(item.special_offer)
-        return list(set(offers))  # Remove duplicates
+        return list(set(offers))
