@@ -76,6 +76,27 @@
         color: #dc3545;
     }
     
+    .inventory-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        background: #e8f4fd;
+        color: #007bff;
+    }
+    .inventory-badge i {
+        color: #007bff;
+    }
+    
+    .inventory-value {
+        font-weight: 700;
+        color: #6f42c1;
+        font-size: 14px;
+    }
+    
     .stock-value {
         font-weight: 700;
         color: #007bff;
@@ -154,6 +175,10 @@
     }
     .modal-detail-item .value.stock-value {
         color: #007bff;
+        font-size: 16px;
+    }
+    .modal-detail-item .value.inventory-value {
+        color: #6f42c1;
         font-size: 16px;
     }
     
@@ -415,7 +440,8 @@
                         <th>Product</th>
                         <th>Price</th>
                         <th>Stock</th>
-                        <th>Stock Value</th>
+                        <th>Inventory</th>
+                        <th>Inventory Value</th>
                         <th>Status</th>
                         <th>Created</th>
                         <th style="width: 180px;">Actions</th>
@@ -455,7 +481,12 @@
                             {% endif %}
                         </td>
                         <td>
-                            <span class="stock-value">৳{{ product.get_stock_value|floatformat:2 }}</span>
+                            <span class="inventory-badge">
+                                <i class="fas fa-warehouse"></i> {{ product.inventory_total|default:0 }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="inventory-value">৳{{ product.inventory_value|floatformat:2 }}</span>
                         </td>
                         <td>
                             {% if product.stock_quantity > 20 %}
@@ -489,7 +520,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="9" class="no-data">
+                        <td colspan="10" class="no-data">
                             <i class="fas fa-box-open"></i>
                             <h3>No Products Found</h3>
                             <p>Start adding products to your inventory!</p>
@@ -550,11 +581,6 @@
                     <label>Current Stock</label>
                     <div class="current-stock" id="currentStock">0</div>
                 </div>
-
-                <div class="form-group">
-                    <label>Current Inventory</label>
-                    <div class="current-stock" id="currentInventory">0</div>
-                </div>
                 
                 <div class="form-group">
                     <label for="addStockQuantity">Quantity to Add <span style="color: red;">*</span></label>
@@ -564,11 +590,6 @@
                 <div class="form-group">
                     <label>New Stock After Addition</label>
                     <div class="current-stock" id="newStockAfterAdd" style="color: #28a745; font-size: 18px;">0</div>
-                </div>
-
-                <div class="form-group">
-                    <label>New Inventory After Addition</label>
-                    <div class="current-stock" id="newInventoryAfterAdd" style="color: #28a745; font-size: 16px;">0</div>
                 </div>
                 
                 <div style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 16px; border-top: 2px solid #e8ecf1;">

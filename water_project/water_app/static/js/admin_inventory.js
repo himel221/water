@@ -247,7 +247,7 @@ function renderTable() {
     if (filteredProducts.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="9" class="no-data">
+                <td colspan="10" class="no-data">
                     <i class="fas fa-box-open"></i>
                     <h3>No Products Found</h3>
                     <p>Try adjusting your filters or search terms.</p>
@@ -267,7 +267,7 @@ function renderTable() {
     pageProducts.forEach(product => {
         const stockQty = product.stock_quantity || 0;
         const inventoryTotal = product.inventory_total || 0;
-        const stockValue = (product.price || 0) * stockQty;
+        const inventoryValue = (product.price || 0) * inventoryTotal;
         
         let stockHtml;
         if (stockQty > 20) {
@@ -308,11 +308,15 @@ function renderTable() {
                     <span class="product-name-cell">${escapeHtml(product.name)}</span>
                 </td>
                 <td>${priceHtml}</td>
+                <td>${stockHtml}</td>
                 <td>
-                    ${stockHtml}
-                    <div style="font-size:11px; color:#6c757d; margin-top:4px;">Inventory: ${inventoryTotal}</div>
+                    <span class="inventory-badge">
+                        <i class="fas fa-warehouse"></i> ${inventoryTotal}
+                    </span>
                 </td>
-                <td><span class="stock-value">৳${stockValue.toFixed(2)}</span></td>
+                <td>
+                    <span class="inventory-value">৳${inventoryValue.toFixed(2)}</span>
+                </td>
                 <td>${statusHtml}</td>
                 <td>
                     <span style="display: block; font-weight: 500; font-size: 13px;">${formatDate(product.created_at)}</span>
@@ -357,7 +361,7 @@ function viewProduct(productId) {
     
     const stockQty = product.stock_quantity || 0;
     const inventoryTotal = product.inventory_total || 0;
-    const stockValue = (product.price || 0) * stockQty;
+    const inventoryValue = (product.price || 0) * inventoryTotal;
     
     body.innerHTML = `
         <div style="text-align: center; margin-bottom: 20px;">
@@ -382,11 +386,11 @@ function viewProduct(productId) {
             </div>
             <div class="modal-detail-item">
                 <span class="label"><i class="fas fa-warehouse"></i> Inventory</span>
-                <span class="value stock-value">${inventoryTotal}</span>
+                <span class="value inventory-value">${inventoryTotal}</span>
             </div>
             <div class="modal-detail-item">
-                <span class="label"><i class="fas fa-money-bill"></i> Stock Value</span>
-                <span class="value stock-value">৳${stockValue.toFixed(2)}</span>
+                <span class="label"><i class="fas fa-money-bill"></i> Inventory Value</span>
+                <span class="value inventory-value">৳${inventoryValue.toFixed(2)}</span>
             </div>
             ${product.is_on_sale && product.discount_price ? `
             <div class="modal-detail-item">
@@ -440,12 +444,8 @@ function openAddStockModal(productId) {
     document.getElementById('stockProductId').value = product.id;
     document.getElementById('stockProductName').textContent = product.name;
     document.getElementById('currentStock').textContent = product.stock_quantity || 0;
-    const invEl = document.getElementById('currentInventory');
-    if (invEl) invEl.textContent = product.inventory_total || 0;
     document.getElementById('addStockQuantity').value = '';
     document.getElementById('newStockAfterAdd').textContent = product.stock_quantity || 0;
-    const newInvEl = document.getElementById('newInventoryAfterAdd');
-    if (newInvEl) newInvEl.textContent = product.inventory_total || 0;
     
     modal.style.display = 'flex';
 }
@@ -456,10 +456,6 @@ function updateStockPreview() {
     const addQuantity = parseInt(document.getElementById('addStockQuantity').value) || 0;
     const newStock = currentStock + addQuantity;
     document.getElementById('newStockAfterAdd').textContent = newStock;
-    const currentInventory = parseInt(document.getElementById('currentInventory').textContent) || 0;
-    const newInventory = currentInventory + addQuantity;
-    const newInvEl = document.getElementById('newInventoryAfterAdd');
-    if (newInvEl) newInvEl.textContent = newInventory;
 }
 
 // ===== Save Add Stock =====
@@ -492,20 +488,9 @@ function saveAddStock() {
     .then(response => response.json())
     .then(data => {
         if (data.status === 'success') {
-            showToast('Inventory updated successfully!', 'success');
-            // Update local product inventory_total and UI without full reload
-            const product = currentProducts.find(p => p.id == productId);
-            if (product) {
-                product.inventory_total = data.inventory_total || (product.inventory_total || 0) + parseInt(addQuantity);
-            }
-            // Update modal and table
-            const invEl = document.getElementById('currentInventory');
-            if (invEl && product) invEl.textContent = product.inventory_total || 0;
-            const newInvEl = document.getElementById('newInventoryAfterAdd');
-            if (newInvEl && product) newInvEl.textContent = product.inventory_total || 0;
+            showToast('Stock added successfully!', 'success');
             document.getElementById('addStockModal').style.display = 'none';
-            renderTable();
-            updateStats();
+            setTimeout(() => location.reload(), 1000);
         } else {
             showToast(data.message || 'Failed to add stock', 'error');
             if (btn) {

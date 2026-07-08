@@ -2328,17 +2328,20 @@ def export_districts_pdf(request):
 @staff_member_required
 def admin_inventory(request):
     """Admin Inventory Management Page"""
-    products = Product.objects.all().order_by('-created_at')
-    
-    # Calculate inventory total for each product
-    from django.db import models
     from water_app.models import Inventory
+    from django.db import models
+    
+    products = Product.objects.all().order_by('-created_at')
     
     products_with_inventory = []
     for product in products:
+        # Calculate inventory total
         inventory_total = Inventory.objects.filter(product=product).aggregate(
             total=models.Sum('quantity')
         )['total'] or 0
+        
+        # Calculate inventory value (price × inventory total)
+        inventory_value = float(product.price) * inventory_total
         
         products_with_inventory.append({
             'id': product.id,
@@ -2346,7 +2349,8 @@ def admin_inventory(request):
             'description': product.description,
             'price': float(product.price),
             'stock_quantity': product.stock_quantity,
-            'inventory_total': inventory_total,  # 👈 Inventory total পাঠান
+            'inventory_total': inventory_total,
+            'inventory_value': inventory_value,  # 👈 Added
             'is_on_sale': product.is_on_sale,
             'discount_price': float(product.discount_price) if product.discount_price else None,
             'image_url': product.image.url if product.image else None,
@@ -2365,7 +2369,6 @@ def admin_inventory(request):
         'total_customers': 0,
     }
     return render(request, 'admin_inventory.html', context)
-
 
 @csrf_exempt
 @staff_member_required
@@ -2463,7 +2466,7 @@ def add_stock(request, product_id):
     
 @staff_member_required
 def export_inventory_excel(request):
-    """Export inventory as Excel file"""
+    """Export inventory as Excel file with Inventory Value"""
     try:
         import openpyxl
         from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -2471,6 +2474,9 @@ def export_inventory_excel(request):
         return HttpResponse("⚠️ openpyxl not installed. Please install: pip install openpyxl", status=500)
     
     try:
+        from water_app.models import Inventory
+        from django.db import models
+        
         products = Product.objects.all().order_by('-created_at')
         
         wb = openpyxl.Workbook()
@@ -2489,20 +2495,20 @@ def export_inventory_excel(request):
         )
         
         # Title
-        ws.merge_cells('A1:G1')
+        ws.merge_cells('A1:I1')
         title_cell = ws['A1']
         title_cell.value = "📦 Aquanimity SuperWater - Inventory Report"
         title_cell.font = Font(name='Arial', size=18, bold=True, color='1a5276')
         title_cell.alignment = Alignment(horizontal='center', vertical='center')
         
-        ws.merge_cells('A2:G2')
+        ws.merge_cells('A2:I2')
         subtitle_cell = ws['A2']
         subtitle_cell.value = f"Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')} | Total Products: {products.count()}"
         subtitle_cell.font = Font(name='Arial', size=10, color='666666')
         subtitle_cell.alignment = Alignment(horizontal='center', vertical='center')
         
-        # Headers
-        headers = ['Sl No', 'Product Name', 'Price (৳)', 'Stock Quantity', 'Stock Value (৳)', 'Status', 'Created At']
+        # Headers - Added Inventory Value column
+        headers = ['Sl No', 'Product Name', 'Price (৳)', 'Stock Quantity', 'Inventory Stock', 'Inventory Value (৳)', 'Stock Value (৳)', 'Status', 'Created At']
         
         for col, header in enumerate(headers, 1):
             cell = ws.cell(row=4, column=col, value=header)
@@ -2515,11 +2521,23 @@ def export_inventory_excel(request):
         row_num = 5
         total_stock_value = 0
         total_stock_quantity = 0
+        total_inventory = 0
+        total_inventory_value = 0
         
         for idx, product in enumerate(products, 1):
+            # Calculate inventory total for this product
+            inventory_total = Inventory.objects.filter(product=product).aggregate(
+                total=models.Sum('quantity')
+            )['total'] or 0
+            
+            # Calculate inventory value
+            inventory_value = float(product.price) * inventory_total
+            
             stock_value = float(product.price) * product.stock_quantity
             total_stock_value += stock_value
             total_stock_quantity += product.stock_quantity
+            total_inventory += inventory_total
+            total_inventory_value += inventory_value
             
             # Determine status
             if product.stock_quantity > 20:
@@ -2534,6 +2552,8 @@ def export_inventory_excel(request):
                 product.name,
                 float(product.price),
                 product.stock_quantity,
+                inventory_total,
+                inventory_value,  # 👈 Inventory Value column
                 stock_value,
                 status,
                 product.created_at.strftime('%Y-%m-%d %H:%M') if product.created_at else '-'
@@ -2541,11 +2561,11 @@ def export_inventory_excel(request):
             
             for col, value in enumerate(row_data, 1):
                 cell = ws.cell(row=row_num, column=col, value=value)
-                cell.alignment = Alignment(horizontal='left' if col not in [1, 4] else 'center', vertical='center', wrap_text=True)
+                cell.alignment = Alignment(horizontal='left' if col not in [1, 4, 5] else 'center', vertical='center', wrap_text=True)
                 cell.border = border
                 
                 # Color coding for stock status
-                if col == 6:  # Status column
+                if col == 8:  # Status column
                     if value == 'In Stock':
                         cell.fill = PatternFill(start_color='d4edda', end_color='d4edda', fill_type='solid')
                         cell.font = Font(color='155724')
@@ -2555,11 +2575,15 @@ def export_inventory_excel(request):
                     else:
                         cell.fill = PatternFill(start_color='f8d7da', end_color='f8d7da', fill_type='solid')
                         cell.font = Font(color='721c24')
+                
+                # Highlight Inventory Value column
+                if col == 6:
+                    cell.font = Font(color='6f42c1', bold=True)
             
             row_num += 1
         
         # Column widths
-        widths = {'A': 6, 'B': 35, 'C': 14, 'D': 12, 'E': 16, 'F': 12, 'G': 18}
+        widths = {'A': 6, 'B': 35, 'C': 14, 'D': 12, 'E': 14, 'F': 16, 'G': 16, 'H': 12, 'I': 18}
         for col, width in widths.items():
             ws.column_dimensions[col].width = width
         
@@ -2579,6 +2603,8 @@ def export_inventory_excel(request):
         summary_data = [
             ['Total Products', str(products.count())],
             ['Total Stock Quantity', str(total_stock_quantity)],
+            ['Total Inventory Stock', str(total_inventory)],
+            ['Total Inventory Value', f"৳ {total_inventory_value:.2f}"],  # 👈 Added
             ['Total Stock Value', f"৳ {total_stock_value:.2f}"],
             ['In Stock', str(in_stock_count)],
             ['Low Stock', str(low_stock_count)],
@@ -2592,7 +2618,7 @@ def export_inventory_excel(request):
         
         # Footer
         footer_row = summary_row + len(summary_data) + 2
-        ws.merge_cells(f'A{footer_row}:G{footer_row}')
+        ws.merge_cells(f'A{footer_row}:I{footer_row}')
         footer_cell = ws.cell(row=footer_row, column=1)
         footer_cell.value = "© 2026 Aquanimity Super Water. All rights reserved."
         footer_cell.font = Font(name='Arial', size=9, color='999999')
@@ -2612,10 +2638,9 @@ def export_inventory_excel(request):
         traceback.print_exc()
         return HttpResponse(f"Error generating Excel: {str(e)}", status=500)
 
-
 @staff_member_required
 def export_inventory_pdf(request):
-    """Export inventory as PDF file with creation date"""
+    """Export inventory as PDF file with Inventory Value"""
     try:
         from reportlab.lib import colors
         from reportlab.lib.pagesizes import landscape, A4
@@ -2627,6 +2652,9 @@ def export_inventory_pdf(request):
         return HttpResponse("⚠️ ReportLab not installed. Please install: pip install reportlab", status=500)
     
     try:
+        from water_app.models import Inventory
+        from django.db import models
+        
         products = Product.objects.all().order_by('-created_at')
         
         response = HttpResponse(content_type='application/pdf')
@@ -2669,6 +2697,17 @@ def export_inventory_pdf(request):
         # Summary
         total_stock_value = sum(float(p.price) * p.stock_quantity for p in products)
         total_stock = sum(p.stock_quantity for p in products)
+        
+        # Calculate total inventory and inventory value
+        total_inventory = 0
+        total_inventory_value = 0
+        for product in products:
+            inventory_total = Inventory.objects.filter(product=product).aggregate(
+                total=models.Sum('quantity')
+            )['total'] or 0
+            total_inventory += inventory_total
+            total_inventory_value += float(product.price) * inventory_total
+        
         in_stock = products.filter(stock_quantity__gt=20).count()
         low_stock = products.filter(stock_quantity__gte=1, stock_quantity__lte=20).count()
         out_of_stock = products.filter(stock_quantity=0).count()
@@ -2677,6 +2716,8 @@ def export_inventory_pdf(request):
             ['📊 INVENTORY SUMMARY', ''],
             ['Total Products', str(products.count())],
             ['Total Stock Quantity', str(total_stock)],
+            ['Total Inventory Stock', str(total_inventory)],
+            ['Total Inventory Value', f"৳ {total_inventory_value:.2f}"],  # 👈 Added
             ['Total Stock Value', f"৳ {total_stock_value:.2f}"],
             ['In Stock (20+)', str(in_stock)],
             ['Low Stock (1-20)', str(low_stock)],
@@ -2701,11 +2742,22 @@ def export_inventory_pdf(request):
         story.append(summary_table)
         story.append(Spacer(1, 0.3*inch))
         
-        # Table - Added "Created Date" column
-        table_data = [['Sl', 'Product Name', 'Price (৳)', 'Stock', 'Stock Value (৳)', 'Status', 'Created Date']]
+        # Table - Added "Inventory Value" column
+        table_data = [
+            ['Sl', 'Product Name', 'Price (৳)', 'Stock', 'Inventory', 'Inventory Value (৳)', 'Stock Value (৳)', 'Status']
+        ]
         
         for idx, product in enumerate(products[:100], 1):
+            # Calculate inventory total
+            inventory_total = Inventory.objects.filter(product=product).aggregate(
+                total=models.Sum('quantity')
+            )['total'] or 0
+            
+            # Calculate inventory value
+            inventory_value = float(product.price) * inventory_total
+            
             stock_value = float(product.price) * product.stock_quantity
+            
             if product.stock_quantity > 20:
                 status = 'In Stock'
             elif product.stock_quantity > 0:
@@ -2713,24 +2765,22 @@ def export_inventory_pdf(request):
             else:
                 status = 'Out of Stock'
             
-            # Format created date
-            created_date = product.created_at.strftime('%d %b %Y') if product.created_at else '-'
-            
             table_data.append([
                 str(idx),
                 product.name[:25] + ('...' if len(product.name) > 25 else ''),
                 f"{float(product.price):.2f}",
                 str(product.stock_quantity),
+                str(inventory_total),
+                f"{inventory_value:.2f}",  # 👈 Inventory Value column
                 f"{stock_value:.2f}",
-                status,
-                created_date
+                status
             ])
         
         if products.count() > 100:
-            table_data.append(['...', f'... and {products.count() - 100} more products', '', '', '', '', ''])
+            table_data.append(['...', f'... and {products.count() - 100} more products', '', '', '', '', '', ''])
         
         # Updated column widths with new column
-        table = Table(table_data, colWidths=[0.4*inch, 2.0*inch, 0.7*inch, 0.5*inch, 0.9*inch, 0.7*inch, 0.9*inch])
+        table = Table(table_data, colWidths=[0.4*inch, 1.8*inch, 0.7*inch, 0.5*inch, 0.6*inch, 0.9*inch, 0.9*inch, 0.7*inch])
         
         # Apply table styles
         table_style = TableStyle([
@@ -2744,25 +2794,32 @@ def export_inventory_pdf(request):
             ('FONTSIZE', (0, 1), (-1, -1), 6),
             ('ALIGN', (0, 0), (0, -1), 'CENTER'),
             ('ALIGN', (3, 1), (3, -1), 'CENTER'),
+            ('ALIGN', (4, 1), (4, -1), 'CENTER'),
             ('ALIGN', (2, 1), (2, -1), 'RIGHT'),
-            ('ALIGN', (4, 1), (4, -1), 'RIGHT'),
-            ('ALIGN', (6, 1), (6, -1), 'CENTER'),
+            ('ALIGN', (5, 1), (5, -1), 'RIGHT'),
+            ('ALIGN', (6, 1), (6, -1), 'RIGHT'),
             ('PADDING', (0, 0), (-1, -1), 2),
         ])
         
-        # Color coding for status column (column index 5)
+        # Color coding for status column (column index 7)
+        for row_idx in range(1, len(table_data)):
+            if len(table_data[row_idx]) > 7:
+                status = table_data[row_idx][7]
+                if status == 'In Stock':
+                    table_style.add('BACKGROUND', (7, row_idx), (7, row_idx), colors.HexColor('#d4edda'))
+                    table_style.add('TEXTCOLOR', (7, row_idx), (7, row_idx), colors.HexColor('#155724'))
+                elif status == 'Low Stock':
+                    table_style.add('BACKGROUND', (7, row_idx), (7, row_idx), colors.HexColor('#fff3cd'))
+                    table_style.add('TEXTCOLOR', (7, row_idx), (7, row_idx), colors.HexColor('#856404'))
+                else:
+                    table_style.add('BACKGROUND', (7, row_idx), (7, row_idx), colors.HexColor('#f8d7da'))
+                    table_style.add('TEXTCOLOR', (7, row_idx), (7, row_idx), colors.HexColor('#721c24'))
+        
+        # Highlight Inventory Value column (index 5)
         for row_idx in range(1, len(table_data)):
             if len(table_data[row_idx]) > 5:
-                status = table_data[row_idx][5]
-                if status == 'In Stock':
-                    table_style.add('BACKGROUND', (5, row_idx), (5, row_idx), colors.HexColor('#d4edda'))
-                    table_style.add('TEXTCOLOR', (5, row_idx), (5, row_idx), colors.HexColor('#155724'))
-                elif status == 'Low Stock':
-                    table_style.add('BACKGROUND', (5, row_idx), (5, row_idx), colors.HexColor('#fff3cd'))
-                    table_style.add('TEXTCOLOR', (5, row_idx), (5, row_idx), colors.HexColor('#856404'))
-                else:
-                    table_style.add('BACKGROUND', (5, row_idx), (5, row_idx), colors.HexColor('#f8d7da'))
-                    table_style.add('TEXTCOLOR', (5, row_idx), (5, row_idx), colors.HexColor('#721c24'))
+                table_style.add('TEXTCOLOR', (5, row_idx), (5, row_idx), colors.HexColor('#6f42c1'))
+                table_style.add('FONTNAME', (5, row_idx), (5, row_idx), 'Helvetica-Bold')
         
         table.setStyle(table_style)
         story.append(table)
