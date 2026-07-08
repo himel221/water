@@ -259,6 +259,77 @@
         background: #f8f9fa;
     }
     
+    /* ===== Edit Form Styles ===== */
+    .edit-form-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+    .edit-form-grid .form-group {
+        margin-bottom: 0;
+    }
+    .form-group {
+        margin-bottom: 16px;
+    }
+    .form-group label {
+        font-weight: 600;
+        color: #2c3e50;
+        font-size: 13px;
+        margin-bottom: 4px;
+        display: block;
+    }
+    .form-group .form-control {
+        width: 100%;
+        border-radius: 8px;
+        border: 2px solid #e8ecf1;
+        padding: 10px 14px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        background: #fafafa;
+    }
+    .form-group .form-control:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 3px rgba(0,123,255,0.1);
+        background: white;
+        outline: none;
+    }
+    .form-group textarea.form-control {
+        resize: vertical;
+        min-height: 60px;
+    }
+    .form-group select.form-control {
+        appearance: auto;
+    }
+    
+    .btn-cancel {
+        padding: 10px 24px;
+        background: #f0f2f5;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        color: #6c757d;
+        transition: all 0.3s ease;
+    }
+    .btn-cancel:hover {
+        background: #e0e4e8;
+    }
+    .btn-save {
+        padding: 10px 24px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s ease;
+    }
+    .btn-save:hover {
+        background: #0056b3;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,123,255,0.3);
+    }
+    
     /* ===== Responsive ===== */
     @media (max-width: 768px) {
         .export-buttons {
@@ -268,6 +339,9 @@
             flex: 1;
             min-width: 120px;
             justify-content: center;
+        }
+        .edit-form-grid {
+            grid-template-columns: 1fr;
         }
     }
 </style>
@@ -593,7 +667,7 @@
     </div>
 </div>
 
-<!-- Order Detail Modal -->
+<!-- ===== Order Detail Modal ===== -->
 <div class="modal-overlay" id="orderModal" style="display: none;">
     <div class="modal-content" style="max-width: 700px;">
         <div class="modal-header">
@@ -605,6 +679,24 @@
         </div>
     </div>
 </div>
+
+<!-- ===== Edit Order Modal ===== -->
+<div class="modal-overlay" id="editOrderModal" style="display: none;">
+    <div class="modal-content" style="max-width: 650px; max-height: 90vh; overflow-y: auto;">
+        <div class="modal-header">
+            <h3><i class="fas fa-edit"></i> Edit Order</h3>
+            <button class="modal-close" id="closeEditModal"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body" id="editOrderBody">
+            <!-- Edit form will be loaded by JavaScript -->
+            <div style="text-align: center; padding: 40px 0;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 30px; color: #007bff;"></i>
+                <p style="color: #7f8c8d; margin-top: 12px;">Loading order details...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}

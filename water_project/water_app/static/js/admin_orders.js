@@ -1,4 +1,4 @@
-// ===== Admin Orders JavaScript - Complete with Full Report Fields =====
+// ===== Admin Orders JavaScript - Complete with Edit Modal =====
 
 let currentOrders = [];
 let filteredOrders = [];
@@ -26,7 +26,6 @@ function initializeOrders(orders) {
                 </tr>
             `;
         }
-        // Update empty stats
         const statNumbers = document.querySelectorAll('.stat-number');
         if (statNumbers.length >= 5) {
             statNumbers[0].textContent = '0';
@@ -94,7 +93,7 @@ function setupEventListeners() {
         });
     }
     
-    // ===== Export All Excel =====
+    // Export All Excel
     const exportExcelAll = document.getElementById('exportExcelAll');
     if (exportExcelAll) {
         exportExcelAll.addEventListener('click', function() {
@@ -102,7 +101,7 @@ function setupEventListeners() {
         });
     }
     
-    // ===== Export All PDF =====
+    // Export All PDF
     const exportPdfAll = document.getElementById('exportPdfAll');
     if (exportPdfAll) {
         exportPdfAll.addEventListener('click', function() {
@@ -110,7 +109,7 @@ function setupEventListeners() {
         });
     }
     
-    // ===== Export Selected Excel =====
+    // Export Selected Excel
     const exportExcelSelected = document.getElementById('exportExcelSelected');
     if (exportExcelSelected) {
         exportExcelSelected.addEventListener('click', function() {
@@ -118,7 +117,7 @@ function setupEventListeners() {
         });
     }
     
-    // ===== Export Selected PDF =====
+    // Export Selected PDF
     const exportPdfSelected = document.getElementById('exportPdfSelected');
     if (exportPdfSelected) {
         exportPdfSelected.addEventListener('click', function() {
@@ -126,7 +125,7 @@ function setupEventListeners() {
         });
     }
     
-    // ===== Refresh =====
+    // Refresh
     const exportRefresh = document.getElementById('exportRefresh');
     if (exportRefresh) {
         exportRefresh.addEventListener('click', function() {
@@ -134,36 +133,38 @@ function setupEventListeners() {
         });
     }
     
-    // View Order - Event Delegation
+    // View Order
     document.addEventListener('click', function(e) {
         const viewBtn = e.target.closest('.btn-view');
         if (viewBtn) {
+            e.preventDefault();
             const orderId = viewBtn.dataset.orderId;
             if (orderId) viewOrder(orderId);
         }
     });
     
-    // Edit Order - FIXED: Open in new tab or redirect to admin panel
+    // Edit Order - Open Edit Modal
     document.addEventListener('click', function(e) {
         const editBtn = e.target.closest('.btn-edit');
         if (editBtn) {
             e.preventDefault();
+            e.stopPropagation();
             const orderId = editBtn.dataset.orderId;
             if (orderId) {
-                // Redirect to Django admin edit page
-                window.location.href = `/admin/water_app/order/${orderId}/change/`;
+                openEditOrderModal(orderId);
             }
         }
     });
     
-    // Delete Order - FIXED: Use DELETE method with CSRF token
+    // Delete Order
     document.addEventListener('click', function(e) {
         const deleteBtn = e.target.closest('.btn-delete');
         if (deleteBtn) {
             e.preventDefault();
+            e.stopPropagation();
             const orderId = deleteBtn.dataset.orderId;
             if (orderId) {
-                if (confirm(`Are you sure you want to delete order ${orderId}? This action cannot be undone.`)) {
+                if (confirm(`Are you sure you want to delete order ${orderId}?`)) {
                     deleteOrder(orderId);
                 }
             }
@@ -183,9 +184,25 @@ function setupEventListeners() {
         });
     }
     
-    // Keyboard shortcut: Escape to close modal
+    // Edit Modal Close
+    const closeEditModalBtn = document.getElementById('closeEditModal');
+    if (closeEditModalBtn) {
+        closeEditModalBtn.addEventListener('click', closeEditModal);
+    }
+    
+    const editOrderModal = document.getElementById('editOrderModal');
+    if (editOrderModal) {
+        editOrderModal.addEventListener('click', function(e) {
+            if (e.target === this) closeEditModal();
+        });
+    }
+    
+    // Keyboard shortcut: Escape
     document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') closeModal();
+        if (e.key === 'Escape') {
+            closeModal();
+            closeEditModal();
+        }
     });
     
     // Pagination
@@ -229,7 +246,6 @@ function filterOrders() {
     const date = dateFilter ? dateFilter.value : 'all';
     
     filteredOrders = currentOrders.filter(order => {
-        // Search filter
         const matchSearch = !search || 
             order.order_id.toLowerCase().includes(search) ||
             order.customer_name.toLowerCase().includes(search) ||
@@ -238,16 +254,12 @@ function filterOrders() {
             (order.customer_address && order.customer_address.toLowerCase().includes(search)) ||
             (order.customer_district && order.customer_district.toLowerCase().includes(search));
         
-        // Status filter
         const matchStatus = status === 'all' || order.status === status;
         
-        // Date filter
         let matchDate = true;
         if (date !== 'all' && order.created_at) {
             const now = new Date();
             const orderDate = new Date(order.created_at);
-            
-            // Reset time for date comparison
             const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
             const orderDay = new Date(orderDate.getFullYear(), orderDate.getMonth(), orderDate.getDate());
             
@@ -305,12 +317,10 @@ function renderTable() {
         const statusClass = order.status || 'pending';
         const statusLabel = order.status ? order.status.charAt(0).toUpperCase() + order.status.slice(1) : 'Pending';
         
-        // Payment Status
         const paymentStatus = order.payment_status || 'pending';
         const paymentLabel = paymentStatus.charAt(0).toUpperCase() + paymentStatus.slice(1);
         const paymentClass = paymentStatus.toLowerCase();
         
-        // Offer HTML
         let offerHtml = '';
         if (order.special_offers_list && order.special_offers_list.length > 0) {
             offerHtml = `<div>`;
@@ -325,7 +335,6 @@ function renderTable() {
             offerHtml = `<span style="color: #b2bec3;">-</span>`;
         }
         
-        // Eligibility HTML
         const eligibilityHtml = order.is_eligible_for_offer ?
             `<span class="eligibility-badge eligible"><i class="fas fa-check-circle"></i> Eligible</span>` :
             `<span class="eligibility-badge not-eligible"><i class="fas fa-times-circle"></i> Not Eligible</span>`;
@@ -376,7 +385,6 @@ function renderTable() {
     if (totalCount) totalCount.textContent = filteredOrders.length;
     updatePagination();
     
-    // Re-bind select all state
     const selectAll = document.getElementById('selectAll');
     if (selectAll) {
         const checkboxes = document.querySelectorAll('.order-checkbox');
@@ -385,7 +393,7 @@ function renderTable() {
     }
 }
 
-// ===== Export Orders with Complete Fields =====
+// ===== Export Orders =====
 function exportOrders(format, type) {
     let orderIds = [];
     let ordersToExport = [];
@@ -403,7 +411,6 @@ function exportOrders(format, type) {
         
         ordersToExport = currentOrders.filter(o => orderIds.includes(o.order_id));
     } else {
-        // All orders with current filters
         ordersToExport = filteredOrders;
     }
     
@@ -412,11 +419,9 @@ function exportOrders(format, type) {
         return;
     }
     
-    // Build URL with complete data
     let url = `/api/orders/export/${format}/`;
     const params = new URLSearchParams();
     
-    // Add all order IDs for selected export
     if (type === 'selected') {
         params.append('ids', orderIds.join(','));
     } else {
@@ -426,14 +431,12 @@ function exportOrders(format, type) {
         if (date !== 'all') params.append('date', date);
     }
     
-    // Add full fields flag to include all columns
     params.append('full_fields', 'true');
     
     if (params.toString()) {
         url += '?' + params.toString();
     }
     
-    // Get the button
     let btn = null;
     if (format === 'excel' && type === 'all') btn = document.getElementById('exportExcelAll');
     else if (format === 'pdf' && type === 'all') btn = document.getElementById('exportPdfAll');
@@ -445,7 +448,6 @@ function exportOrders(format, type) {
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
         btn.disabled = true;
         
-        // Fetch and download
         fetch(url, {
             method: 'GET',
             headers: {
@@ -494,7 +496,6 @@ function viewOrder(orderId) {
     const body = document.getElementById('orderDetailBody');
     if (!modal || !body) return;
     
-    // Calculate totals
     let subtotal = 0;
     let totalDiscount = 0;
     let totalSavings = 0;
@@ -666,7 +667,7 @@ function viewOrder(orderId) {
         
         <div class="detail-section" style="margin-bottom: 0;">
             <div style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 12px; border-top: 1px solid #e8ecf1; flex-wrap: wrap;">
-                <button onclick="window.location.href='/admin/water_app/order/${order.order_id}/change/'" 
+                <button onclick="openEditOrderModal('${order.order_id}')" 
                         style="padding: 8px 20px; background: #f39c12; color: white; border: none; border-radius: 6px; cursor: pointer;">
                     <i class="fas fa-edit"></i> Edit Order
                 </button>
@@ -680,6 +681,243 @@ function viewOrder(orderId) {
     
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
+}
+
+// ===== Open Edit Order Modal =====
+function openEditOrderModal(orderId) {
+    const order = currentOrders.find(o => o.order_id === orderId);
+    if (!order) {
+        showToast('Order not found!', 'error');
+        return;
+    }
+    
+    const modal = document.getElementById('editOrderModal');
+    const body = document.getElementById('editOrderBody');
+    if (!modal || !body) return;
+    
+    const statusOptions = [
+        { value: 'pending', label: 'Pending' },
+        { value: 'processing', label: 'Processing' },
+        { value: 'shipped', label: 'Shipped' },
+        { value: 'delivered', label: 'Delivered' },
+        { value: 'cancelled', label: 'Cancelled' }
+    ];
+    
+    const paymentOptions = [
+        { value: 'pending', label: 'Pending' },
+        { value: 'completed', label: 'Completed' },
+        { value: 'failed', label: 'Failed' },
+        { value: 'refunded', label: 'Refunded' }
+    ];
+    
+    let statusDropdown = '';
+    statusOptions.forEach(opt => {
+        const selected = order.status === opt.value ? 'selected' : '';
+        statusDropdown += `<option value="${opt.value}" ${selected}>${opt.label}</option>`;
+    });
+    
+    let paymentDropdown = '';
+    paymentOptions.forEach(opt => {
+        const selected = order.payment_status === opt.value ? 'selected' : '';
+        paymentDropdown += `<option value="${opt.value}" ${selected}>${opt.label}</option>`;
+    });
+    
+    body.innerHTML = `
+        <form id="editOrderForm">
+            <input type="hidden" id="editOrderId" value="${escapeHtml(order.order_id)}" />
+            
+            <div class="edit-form-grid">
+                <div class="form-group">
+                    <label for="editCustomerName">Customer Name <span style="color:red;">*</span></label>
+                    <input type="text" class="form-control" id="editCustomerName" value="${escapeHtml(order.customer_name)}" required />
+                </div>
+                
+                <div class="form-group">
+                    <label for="editCustomerEmail">Email <span style="color:red;">*</span></label>
+                    <input type="email" class="form-control" id="editCustomerEmail" value="${escapeHtml(order.customer_email)}" required />
+                </div>
+                
+                <div class="form-group">
+                    <label for="editCustomerPhone">Phone</label>
+                    <input type="text" class="form-control" id="editCustomerPhone" value="${escapeHtml(order.customer_phone || '')}" />
+                </div>
+                
+                <div class="form-group">
+                    <label for="editCustomerDistrict">District</label>
+                    <input type="text" class="form-control" id="editCustomerDistrict" value="${escapeHtml(order.customer_district || '')}" />
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="editCustomerAddress">Address</label>
+                <textarea class="form-control" id="editCustomerAddress" rows="2">${escapeHtml(order.customer_address || '')}</textarea>
+            </div>
+            
+            <div class="edit-form-grid">
+                <div class="form-group">
+                    <label for="editOrderStatus">Order Status <span style="color:red;">*</span></label>
+                    <select class="form-control" id="editOrderStatus">
+                        ${statusDropdown}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="editPaymentStatus">Payment Status <span style="color:red;">*</span></label>
+                    <select class="form-control" id="editPaymentStatus">
+                        ${paymentDropdown}
+                    </select>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Order Items</label>
+                <div style="background:#f8f9fa; padding:12px; border-radius:8px; max-height:150px; overflow-y:auto;">
+                    ${order.items && order.items.length > 0 ? 
+                        order.items.map(item => 
+                            `<div style="display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid #eee;">
+                                <span>${escapeHtml(item.product_name)} x ${item.quantity}</span>
+                                <span style="font-weight:600;">৳${(item.product_price * item.quantity).toFixed(2)}</span>
+                            </div>`
+                        ).join('') 
+                        : '<span style="color:#999;">No items</span>'
+                    }
+                </div>
+            </div>
+            
+            <div class="edit-form-grid" style="margin-top:12px;">
+                <div class="form-group">
+                    <label>Subtotal</label>
+                    <div style="font-weight:700; font-size:18px; color:#007bff;">৳${(order.subtotal || 0).toFixed(2)}</div>
+                </div>
+                <div class="form-group">
+                    <label>Total Amount</label>
+                    <div style="font-weight:700; font-size:18px; color:#28a745;">৳${(order.total_amount || 0).toFixed(2)}</div>
+                </div>
+            </div>
+            
+            <div style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 16px; border-top: 2px solid #e8ecf1; margin-top:12px;">
+                <button type="button" class="btn-cancel" onclick="closeEditModal()">
+                    Cancel
+                </button>
+                <button type="submit" class="btn-save">
+                    <i class="fas fa-save"></i> Update Order
+                </button>
+            </div>
+        </form>
+    `;
+    
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    
+    // Attach form submit event
+    const form = document.getElementById('editOrderForm');
+    if (form) {
+        // Remove existing listener to avoid duplicates
+        form.removeEventListener('submit', handleEditSubmit);
+        form.addEventListener('submit', handleEditSubmit);
+    }
+}
+
+// ===== Handle Edit Form Submit =====
+function handleEditSubmit(e) {
+    e.preventDefault();
+    saveOrderEdit();
+}
+
+// ===== Save Order Edit =====
+function saveOrderEdit() {
+    const orderId = document.getElementById('editOrderId').value;
+    
+    // Get form values
+    const customerName = document.getElementById('editCustomerName');
+    const customerEmail = document.getElementById('editCustomerEmail');
+    const customerPhone = document.getElementById('editCustomerPhone');
+    const customerAddress = document.getElementById('editCustomerAddress');
+    const customerDistrict = document.getElementById('editCustomerDistrict');
+    const orderStatus = document.getElementById('editOrderStatus');
+    const paymentStatus = document.getElementById('editPaymentStatus');
+    
+    // Validate required fields
+    if (!customerName || !customerName.value.trim()) {
+        showToast('Customer name is required!', 'error');
+        customerName.focus();
+        return;
+    }
+    if (!customerEmail || !customerEmail.value.trim()) {
+        showToast('Customer email is required!', 'error');
+        customerEmail.focus();
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('customer_name', customerName.value.trim());
+    formData.append('customer_email', customerEmail.value.trim());
+    formData.append('customer_phone', customerPhone ? customerPhone.value.trim() : '');
+    formData.append('customer_address', customerAddress ? customerAddress.value.trim() : '');
+    formData.append('customer_district', customerDistrict ? customerDistrict.value.trim() : '');
+    formData.append('status', orderStatus ? orderStatus.value : 'pending');
+    formData.append('payment_status', paymentStatus ? paymentStatus.value : 'pending');
+    
+    const csrfToken = getCookie('csrftoken');
+    
+    const btn = document.querySelector('.btn-save');
+    const originalText = btn ? btn.innerHTML : 'Save';
+    if (btn) {
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Updating...';
+        btn.disabled = true;
+    }
+    
+    console.log('📤 Updating order:', orderId);
+    
+    fetch(`/api/orders/${orderId}/update/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin',
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('📦 Response:', data);
+        if (data.status === 'success') {
+            showToast('✅ Order updated successfully!', 'success');
+            closeEditModal();
+            // Reload page after 1 second
+            setTimeout(() => {
+                location.reload();
+            }, 1000);
+        } else {
+            showToast(data.message || 'Failed to update order', 'error');
+            if (btn) {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
+        }
+    })
+    .catch(error => {
+        console.error('❌ Error updating order:', error);
+        showToast('Error updating order. Please try again.', 'error');
+        if (btn) {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    });
+}
+
+// ===== Close Edit Modal =====
+function closeEditModal() {
+    const modal = document.getElementById('editOrderModal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.body.style.overflow = '';
+    }
 }
 
 // ===== Download Invoice =====
@@ -748,6 +986,19 @@ function deleteOrder(orderId) {
     })
     .then(response => {
         if (!response.ok) {
+            // Try POST with _method if DELETE fails
+            if (response.status === 405) {
+                return fetch(`/api/orders/${orderId}/delete/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    credentials: 'same-origin',
+                    body: '_method=DELETE'
+                });
+            }
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         return response.json();
@@ -755,7 +1006,6 @@ function deleteOrder(orderId) {
     .then(data => {
         console.log('Delete response:', data);
         if (data.status === 'success' || data.success) {
-            // Remove from currentOrders
             currentOrders = currentOrders.filter(o => o.order_id !== orderId);
             filteredOrders = filteredOrders.filter(o => o.order_id !== orderId);
             updateStats();
@@ -898,7 +1148,6 @@ function updatePagination() {
     if (startCount) startCount.textContent = start;
     if (endCount) endCount.textContent = end;
     if (totalCount) totalCount.textContent = filteredOrders.length;
-    
     updatePaginationButtons();
 }
 
@@ -1006,12 +1255,15 @@ window.renderTable = renderTable;
 window.filterOrders = filterOrders;
 window.viewOrder = viewOrder;
 window.closeModal = closeModal;
+window.closeEditModal = closeEditModal;
 window.exportOrders = exportOrders;
 window.deleteOrder = deleteOrder;
 window.showToast = showToast;
 window.goToPage = goToPage;
 window.changePage = changePage;
 window.downloadInvoice = downloadInvoice;
+window.openEditOrderModal = openEditOrderModal;
+window.saveOrderEdit = saveOrderEdit;
 
 // Add toast animation styles
 (function addToastStyles() {

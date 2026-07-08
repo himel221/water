@@ -1282,6 +1282,81 @@ def admin_products(request):
     }
     return render(request, 'admin_products.html', context)
 
+# ===== Custom Admin Edit Views =====
+
+@csrf_exempt
+@staff_member_required
+def update_order(request, order_id):
+    """Update an existing order via API"""
+    if request.method not in ['POST', 'PUT']:
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        order = get_object_or_404(Order, order_id=order_id)
+        
+        # Get form data
+        customer_name = request.POST.get('customer_name', '').strip()
+        customer_email = request.POST.get('customer_email', '').strip()
+        customer_phone = request.POST.get('customer_phone', '').strip()
+        customer_address = request.POST.get('customer_address', '').strip()
+        customer_district = request.POST.get('customer_district', '').strip()
+        status = request.POST.get('status', 'pending')
+        payment_status = request.POST.get('payment_status', 'pending')
+        
+        # Validate required fields
+        if not customer_name:
+            return JsonResponse({'status': 'error', 'message': 'Customer name is required'}, status=400)
+        if not customer_email:
+            return JsonResponse({'status': 'error', 'message': 'Customer email is required'}, status=400)
+        
+        # Update order
+        order.customer_name = customer_name
+        order.customer_email = customer_email
+        order.customer_phone = customer_phone if customer_phone else None
+        order.customer_address = customer_address if customer_address else None
+        order.customer_district = customer_district if customer_district else None
+        order.status = status
+        order.payment_status = payment_status
+        
+        order.save()
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Order updated successfully',
+            'order_id': order.order_id
+        })
+        
+    except Exception as e:
+        print(f"❌ Error updating order: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+@staff_member_required
+def admin_product_edit(request, product_id):
+    """Custom Product Edit Page"""
+    product = get_object_or_404(Product, id=product_id)
+    
+    if request.method == 'POST':
+        # Update product logic here
+        product.name = request.POST.get('name', product.name)
+        product.description = request.POST.get('description', product.description)
+        product.price = request.POST.get('price', product.price)
+        product.discount_price = request.POST.get('discount_price', product.discount_price)
+        product.discount_percentage = request.POST.get('discount_percentage', product.discount_percentage)
+        product.stock_quantity = request.POST.get('stock_quantity', product.stock_quantity)
+        product.is_active = request.POST.get('is_active', 'on') == 'on'
+        product.special_offer = request.POST.get('special_offer', product.special_offer)
+        product.save()
+        
+        messages.success(request, f'Product {product.name} updated successfully!')
+        return redirect('admin_products')
+    
+    context = {
+        'product': product,
+    }
+    return render(request, 'admin_product_edit.html', context)
+
 
 @staff_member_required
 def get_products(request):
