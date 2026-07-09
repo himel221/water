@@ -58,9 +58,20 @@ urlpatterns = [
     path('api/inventory/export/pdf/', views.export_inventory_pdf, name='export_inventory_pdf'),
 
                     # Customer URLs
-    path('customer/add/', views.customer_form, name='customer_form'),
-    path('customer/success/', views.customer_success, name='customer_success'),
-    path('customer/list/', views.customer_list, name='customer_list'),
-    path('customer/<int:customer_id>/', views.customer_detail, name='customer_detail'),
-    path('customer/<int:customer_id>/delete/', views.customer_delete, name='customer_delete'),
+    #path('customer/add/', views.customer_form, name='customer_form'),
+    #path('customer/success/', views.customer_success, name='customer_success'),
+    #path('customer/list/', views.customer_list, name='customer_list'),
+    #path('customer/<int:customer_id>/', views.customer_detail, name='customer_detail'),
+    #path('customer/<int:customer_id>/delete/', views.customer_delete, name='customer_delete'),
+    
+    # ===== Admin Customers =====
+    path('admin-customers/', views.admin_customers, name='admin_customers'),
+    path('api/customers/', views.get_customers, name='get_customers'),
+    path('api/customers/create/', views.create_customer, name='create_customer'),
+    path('api/customers/<int:customer_id>/update/', views.update_customer, name='update_customer'),
+    path('api/customers/<int:customer_id>/delete/', views.delete_customer, name='delete_customer'),
+    path('api/customers/<int:customer_id>/', views.get_customer_detail, name='get_customer_detail'),
+    path('api/customers/<int:customer_id>/orders/', views.get_customer_orders, name='get_customer_orders'),
+    path('api/customers/export/excel/', views.export_customers_excel, name='export_customers_excel'),
+    path('api/customers/export/pdf/', views.export_customers_pdf, name='export_customers_pdf'),
 ]

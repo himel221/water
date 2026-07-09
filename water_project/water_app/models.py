@@ -491,100 +491,40 @@ class Inventory(models.Model):
             self.new_stock = self.previous_stock + self.quantity
         super().save(*args, **kwargs)
     
+# water_app/models.py - Add this model
+
 class Customer(models.Model):
-    # Health Condition Choices
     DIABETES_CHOICES = [
-        ('yes', 'Yes, I have Diabetes'),
-        ('no', 'No, I don\'t have Diabetes'),
-        ('pre', 'Pre-diabetic'),
+        ('none', 'None'),
+        ('type1', 'Type 1 Diabetes'),
+        ('type2', 'Type 2 Diabetes'),
         ('gestational', 'Gestational Diabetes'),
-        ('unsure', 'Not sure'),
     ]
     
     BLOOD_PRESSURE_CHOICES = [
-        ('normal', 'Normal (Less than 120/80)'),
-        ('elevated', 'Elevated (120-129/80)'),
-        ('stage1', 'Stage 1 Hypertension (130-139/80-89)'),
-        ('stage2', 'Stage 2 Hypertension (140+/90+)'),
-        ('crisis', 'Hypertensive Crisis (180+/120+)'),
-        ('unsure', 'Not sure / Don\'t know'),
+        ('normal', 'Normal'),
+        ('high', 'High'),
+        ('low', 'Low'),
     ]
     
-    # Basic Information
-    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
     name = models.CharField(max_length=200)
-    email = models.EmailField(max_length=200)
-    phone = models.CharField(max_length=15)
-    address = models.TextField()
-    city = models.CharField(max_length=100)
-    state = models.CharField(max_length=100)
-    pincode = models.CharField(max_length=10)
+    email = models.EmailField(unique=True)
+    phone = models.CharField(max_length=20, blank=True, null=True)
+    address = models.TextField(blank=True, null=True)
+    district = models.CharField(max_length=100, blank=True, null=True)
+    is_active = models.BooleanField(default=True)
     
-    # Additional Fields
-    company_name = models.CharField(max_length=200, blank=True, null=True)
-    gst_number = models.CharField(max_length=20, blank=True, null=True)
+    # Health information
+    is_diabetic = models.BooleanField(default=False)
+    diabetes_type = models.CharField(max_length=20, choices=DIABETES_CHOICES, default='none')
+    has_high_blood_pressure = models.BooleanField(default=False)
+    blood_pressure_status = models.CharField(max_length=20, choices=BLOOD_PRESSURE_CHOICES, default='normal')
     
-    # Health Information Fields
-    has_diabetes = models.CharField(
-        max_length=20, 
-        choices=DIABETES_CHOICES, 
-        default='no',
-        verbose_name='Diabetes Status'
-    )
-    diabetes_notes = models.TextField(
-        blank=True, 
-        null=True,
-        help_text='Additional notes about diabetes condition (e.g., Type 1, Type 2, medications)',
-        verbose_name='Diabetes Notes'
-    )
-    
-    blood_pressure = models.CharField(
-        max_length=20, 
-        choices=BLOOD_PRESSURE_CHOICES, 
-        default='unsure',
-        verbose_name='Blood Pressure Status'
-    )
-    blood_pressure_notes = models.TextField(
-        blank=True, 
-        null=True,
-        help_text='Additional notes about blood pressure (e.g., medications, readings)',
-        verbose_name='Blood Pressure Notes'
-    )
-    
-    # Additional Health Info
-    other_health_conditions = models.TextField(
-        blank=True, 
-        null=True,
-        help_text='Any other health conditions or allergies',
-        verbose_name='Other Health Conditions'
-    )
-    
-    # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
-    def __str__(self):
-        return self.name
-    
-    def get_diabetes_display(self):
-        """Get human-readable diabetes status"""
-        return dict(self.DIABETES_CHOICES).get(self.has_diabetes, 'Not specified')
-    
-    def get_blood_pressure_display(self):
-        """Get human-readable blood pressure status"""
-        return dict(self.BLOOD_PRESSURE_CHOICES).get(self.blood_pressure, 'Not specified')
-    
-    @property
-    def is_diabetic(self):
-        """Check if customer has diabetes (excluding 'no' and 'unsure')"""
-        return self.has_diabetes in ['yes', 'pre', 'gestational']
-    
-    @property
-    def has_high_blood_pressure(self):
-        """Check if customer has high blood pressure"""
-        return self.blood_pressure in ['stage1', 'stage2', 'crisis']
-    
     class Meta:
         ordering = ['-created_at']
-        verbose_name = 'Customer'
-        verbose_name_plural = 'Customers'
+    
+    def __str__(self):
+        return f"{self.name} - {self.email}"

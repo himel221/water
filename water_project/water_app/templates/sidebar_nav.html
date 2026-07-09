@@ -1,0 +1,73 @@
+<!-- sidebar.html -->
+{% load static %}
+
+<!-- Sidebar Overlay -->
+<div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+<!-- Sidebar -->
+<div class="admin-sidebar" id="adminSidebar">
+    <div class="sidebar-header">
+        <div class="sidebar-logo">
+            <i class="fas fa-droplet"></i>
+            <span>Superwater</span>
+        </div>
+    </div>
+    <div class="sidebar-menu">
+        <a href="{% url 'admin_dashboard' %}">
+            <div class="menu-item active">
+                <i class="fas fa-th-large"></i>
+                <span>Dashboard</span>
+            </div>
+        </a>
+        <a href="{% url 'admin_orders' %}">
+            <div class="menu-item">
+                <i class="fas fa-shopping-bag"></i>
+                <span>Orders</span>
+            </div>
+        </a>
+        <a href="{% url 'admin_products' %}">
+            <div class="menu-item">
+                <i class="fas fa-box"></i>
+                <span>Products</span>
+            </div>
+        </a>
+        <a href="{% url 'admin_customers' %}">
+            <div class="menu-item">
+                <i class="fas fa-users"></i>
+                <span>Customers</span>
+            </div>
+        </a>
+        <a href="{% url 'admin_delivery' %}">
+            <div class="menu-item">
+                <i class="fas fa-truck"></i>
+                <span>Delivery</span>
+            </div>
+        </a>
+        <a href="{% url 'admin_inventory' %}">
+            <div class="menu-item">
+                <i class="fas fa-tags"></i>
+                <span>Inventory</span>
+            </div>
+        </a>
+        <a href="#">
+            <div class="menu-item">
+                <i class="fas fa-chart-line"></i>
+                <span>Analytics</span>
+            </div>
+        </a>
+        <a href="#">
+            <div class="menu-item">
+                <i class="fas fa-cog"></i>
+                <span>Settings</span>
+            </div>
+        </a>
+    </div>
+    <div class="sidebar-footer">
+        <a href="{% url 'home' %}">
+            <div class="menu-item">
+                <i class="fas fa-sign-out-alt"></i>
+                <span>Logout</span>
+            </div>
+        </a>
+    </div>
+</div>

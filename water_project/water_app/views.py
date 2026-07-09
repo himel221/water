@@ -11,6 +11,20 @@ from django.db import models
 from django.contrib import messages
 from .forms import CustomerForm
 
+
+import openpyxl
+from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+from openpyxl.utils import get_column_letter
+from django.http import HttpResponse
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import landscape, letter
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from io import BytesIO
+from datetime import datetime
+
 # ReportLab Import
 try:
     from reportlab.lib import colors
@@ -2847,56 +2861,548 @@ def export_inventory_pdf(request):
         traceback.print_exc()
         return HttpResponse(f"Error generating PDF: {str(e)}", status=500)
     
-def customer_form(request):
-    """View to display and handle customer registration form"""
-    if request.method == 'POST':
-        form = CustomerForm(request.POST)
-        if form.is_valid():
-            customer = form.save()
-            messages.success(request, f'✅ Customer {customer.name} added successfully!')
-            return redirect('customer_success')  # ✅ Fixed: Added 'redirect'
-        else:
-            messages.error(request, 'Please correct the errors below.')
-    else:
-        form = CustomerForm()
+# ============================================
+# CUSTOMER MANAGEMENT VIEWS
+# ============================================
+
+from water_app.models import Customer, Order
+
+@staff_member_required
+def admin_customers(request):
+    """Admin Customers Management Page"""
+    customers = Customer.objects.all().order_by('-created_at')
     
-    return render(request, 'customer_form.html', {'form': form})
-
-def customer_success(request):
-    """Success page after customer registration"""
-    return render(request, 'customer_success.html')
-
-def customer_list(request):
-    """View to display all customers"""
-    customers = Customer.objects.all()
-    return render(request, 'customer_list.html', {'customers': customers})
-
-def customer_detail(request, customer_id):
-    """View to display a specific customer's details including health info"""
-    customer = get_object_or_404(Customer, id=customer_id)
-    # Get all orders for this customer
-    orders = Order.objects.filter(customer_email=customer.email).order_by('-created_at')
+    customers_json = []
+    total_revenue = 0
+    total_orders = 0
     
-    # Health status indicators
-    health_summary = {
-        'diabetes': customer.get_diabetes_display(),
-        'blood_pressure': customer.get_blood_pressure_display(),
-        'is_diabetic': customer.is_diabetic,
-        'has_high_bp': customer.has_high_blood_pressure,
+    for customer in customers:
+        # Get customer orders
+        orders = Order.objects.filter(customer_email=customer.email)
+        order_count = orders.count()
+        total_spent = sum(float(o.total_amount) for o in orders)
+        
+        total_revenue += total_spent
+        total_orders += order_count
+        
+        customers_json.append({
+            'id': customer.id,
+            'name': customer.name,
+            'email': customer.email,
+            'phone': customer.phone,
+            'address': customer.address,
+            'district': customer.district,
+            'is_active': customer.is_active,
+            'is_diabetic': customer.is_diabetic,
+            'diabetes_type': customer.diabetes_type,
+            'has_high_blood_pressure': customer.has_high_blood_pressure,
+            'blood_pressure_status': customer.blood_pressure_status,
+            'order_count': order_count,
+            'total_spent': total_spent,
+            'created_at': customer.created_at.isoformat() if customer.created_at else None,
+        })
+    
+    context = {
+        'active_page': 'admin_customers',
+        'customers': customers,
+        'customers_json': json.dumps(customers_json),
+        'total_customers': customers.count(),
+        'active_customers': customers.filter(is_active=True).count(),
+        'inactive_customers': customers.filter(is_active=False).count(),
+        'total_revenue': total_revenue,
+        'total_orders': total_orders,
+        'total_products': Product.objects.count(),
+        'total_districts': DistrictDeliveryCharge.objects.count(),
     }
-    
-    return render(request, 'customer_detail.html', {
-        'customer': customer,
-        'orders': orders,
-        'health_summary': health_summary
-    })
+    return render(request, 'admin_customer.html', context)
 
-def customer_delete(request, customer_id):
+
+@staff_member_required
+def get_customers(request):
+    """Get customers as JSON"""
+    customers = Customer.objects.all().order_by('-created_at')
+    data = []
+    for customer in customers:
+        orders = Order.objects.filter(customer_email=customer.email)
+        data.append({
+            'id': customer.id,
+            'name': customer.name,
+            'email': customer.email,
+            'phone': customer.phone,
+            'address': customer.address,
+            'district': customer.district,
+            'is_active': customer.is_active,
+            'is_diabetic': customer.is_diabetic,
+            'diabetes_type': customer.diabetes_type,
+            'has_high_blood_pressure': customer.has_high_blood_pressure,
+            'blood_pressure_status': customer.blood_pressure_status,
+            'order_count': orders.count(),
+            'total_spent': sum(float(o.total_amount) for o in orders),
+            'created_at': customer.created_at.isoformat() if customer.created_at else None,
+        })
+    return JsonResponse(data, safe=False)
+
+
+@staff_member_required
+def get_customer_detail(request, customer_id):
+    """Get single customer detail as JSON"""
+    try:
+        customer = get_object_or_404(Customer, id=customer_id)
+        orders = Order.objects.filter(customer_email=customer.email).order_by('-created_at')
+        
+        data = {
+            'id': customer.id,
+            'name': customer.name,
+            'email': customer.email,
+            'phone': customer.phone,
+            'address': customer.address,
+            'district': customer.district,
+            'is_active': customer.is_active,
+            'is_diabetic': customer.is_diabetic,
+            'diabetes_type': customer.diabetes_type,
+            'has_high_blood_pressure': customer.has_high_blood_pressure,
+            'blood_pressure_status': customer.blood_pressure_status,
+            'order_count': orders.count(),
+            'total_spent': sum(float(o.total_amount) for o in orders),
+            'created_at': customer.created_at.isoformat() if customer.created_at else None,
+            'orders': [
+                {
+                    'order_id': o.order_id,
+                    'total_amount': float(o.total_amount),
+                    'status': o.status,
+                    'status_display': o.get_status_display(),
+                    'created_at': o.created_at.isoformat() if o.created_at else None,
+                    'items_count': o.get_total_items(),
+                }
+                for o in orders[:10]
+            ]
+        }
+        return JsonResponse(data)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+
+@csrf_exempt
+@staff_member_required
+def create_customer(request):
+    """Create a new customer"""
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        data = json.loads(request.body)
+        
+        name = data.get('name', '').strip()
+        email = data.get('email', '').strip()
+        phone = data.get('phone', '').strip()
+        address = data.get('address', '').strip()
+        district = data.get('district', '').strip()
+        is_active = data.get('is_active', True)
+        is_diabetic = data.get('is_diabetic', False)
+        diabetes_type = data.get('diabetes_type', 'none')
+        has_high_blood_pressure = data.get('has_high_blood_pressure', False)
+        blood_pressure_status = data.get('blood_pressure_status', 'normal')
+        
+        if not name:
+            return JsonResponse({'status': 'error', 'message': 'Name is required'}, status=400)
+        if not email:
+            return JsonResponse({'status': 'error', 'message': 'Email is required'}, status=400)
+        
+        # Check if customer already exists
+        if Customer.objects.filter(email=email).exists():
+            return JsonResponse({'status': 'error', 'message': 'Customer with this email already exists'}, status=400)
+        
+        customer = Customer.objects.create(
+            name=name,
+            email=email,
+            phone=phone,
+            address=address,
+            district=district,
+            is_active=is_active,
+            is_diabetic=is_diabetic,
+            diabetes_type=diabetes_type,
+            has_high_blood_pressure=has_high_blood_pressure,
+            blood_pressure_status=blood_pressure_status,
+        )
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Customer created successfully',
+            'customer_id': customer.id
+        })
+        
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
+@csrf_exempt
+@staff_member_required
+def update_customer(request, customer_id):
+    """Update an existing customer"""
+    if request.method not in ['PUT', 'POST']:
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        customer = get_object_or_404(Customer, id=customer_id)
+        data = json.loads(request.body)
+        
+        customer.name = data.get('name', customer.name).strip()
+        customer.email = data.get('email', customer.email).strip()
+        customer.phone = data.get('phone', customer.phone).strip()
+        customer.address = data.get('address', customer.address).strip()
+        customer.district = data.get('district', customer.district).strip()
+        customer.is_active = data.get('is_active', customer.is_active)
+        customer.is_diabetic = data.get('is_diabetic', customer.is_diabetic)
+        customer.diabetes_type = data.get('diabetes_type', customer.diabetes_type)
+        customer.has_high_blood_pressure = data.get('has_high_blood_pressure', customer.has_high_blood_pressure)
+        customer.blood_pressure_status = data.get('blood_pressure_status', customer.blood_pressure_status)
+        customer.save()
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': 'Customer updated successfully',
+            'customer_id': customer.id
+        })
+        
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
+@csrf_exempt
+@staff_member_required
+def delete_customer(request, customer_id):
     """Delete a customer"""
-    customer = get_object_or_404(Customer, id=customer_id)
-    if request.method == 'POST':
-        customer_name = customer.name
+    if request.method != 'DELETE':
+        return JsonResponse({'error': 'Method not allowed'}, status=405)
+    
+    try:
+        customer = get_object_or_404(Customer, id=customer_id)
         customer.delete()
-        messages.success(request, f'✅ Customer {customer_name} deleted successfully!')
-        return redirect('customer_list')  # ✅ Fixed: Added 'redirect'
-    return render(request, 'customer_confirm_delete.html', {'customer': customer})
+        return JsonResponse({'status': 'success', 'message': 'Customer deleted successfully'})
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
+@staff_member_required
+def get_customer_orders(request, customer_id):
+    """Get customer orders"""
+    try:
+        customer = get_object_or_404(Customer, id=customer_id)
+        orders = Order.objects.filter(customer_email=customer.email).order_by('-created_at')
+        
+        data = [{
+            'order_id': o.order_id,
+            'total_amount': float(o.total_amount),
+            'status': o.status,
+            'status_display': o.get_status_display(),
+            'payment_status': o.payment_status,
+            'created_at': o.created_at.isoformat() if o.created_at else None,
+            'items_count': o.get_total_items(),
+            'items': [
+                {
+                    'product_name': item.product_name,
+                    'quantity': item.quantity,
+                    'total_price': float(item.total_price),
+                }
+                for item in o.order_items.all()
+            ]
+        } for o in orders]
+        
+        return JsonResponse({
+            'status': 'success',
+            'customer_name': customer.name,
+            'orders': data,
+            'total_orders': orders.count(),
+            'total_spent': sum(float(o.total_amount) for o in orders)
+        })
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)
+    
+
+# ============================================
+# CUSTOMER EXPORT VIEWS
+# ============================================
+
+
+
+@staff_member_required
+def export_customers_excel(request):
+    """
+    Export all customers to Excel file
+    """
+    try:
+        # Create workbook
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = "Customers"
+
+        # Define headers
+        headers = [
+            'ID', 'Name', 'Email', 'Phone', 'Address', 'District', 
+            'Status', 'Diabetes', 'Diabetes Type', 'Blood Pressure',
+            'BP Status', 'Order Count', 'Total Spent', 'Created At'
+        ]
+
+        # Style for header
+        header_font = Font(bold=True, color="FFFFFF", size=11)
+        header_fill = PatternFill(start_color="2C3E50", end_color="2C3E50", fill_type="solid")
+        header_alignment = Alignment(horizontal="center", vertical="center")
+        border = Border(
+            left=Side(style='thin', color='CCCCCC'),
+            right=Side(style='thin', color='CCCCCC'),
+            top=Side(style='thin', color='CCCCCC'),
+            bottom=Side(style='thin', color='CCCCCC')
+        )
+
+        # Write headers
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = header_alignment
+            cell.border = border
+
+        # Get customers with order data
+        customers = Customer.objects.all().order_by('-created_at')
+        
+        # Write data
+        for row_idx, customer in enumerate(customers, 2):
+            # Get customer orders
+            orders = Order.objects.filter(customer_email=customer.email)
+            order_count = orders.count()
+            total_spent = sum(float(o.total_amount) for o in orders)
+            
+            row_data = [
+                customer.id,
+                customer.name,
+                customer.email,
+                customer.phone or '',
+                customer.address or '',
+                customer.district or '',
+                'Active' if customer.is_active else 'Inactive',
+                'Yes' if customer.is_diabetic else 'No',
+                customer.diabetes_type or 'none',
+                'Yes' if customer.has_high_blood_pressure else 'No',
+                customer.blood_pressure_status or 'normal',
+                order_count,
+                f"{total_spent:.2f}",
+                customer.created_at.strftime('%Y-%m-%d %H:%M') if customer.created_at else ''
+            ]
+
+            for col, value in enumerate(row_data, 1):
+                cell = ws.cell(row=row_idx, column=col, value=value)
+                cell.alignment = Alignment(horizontal="left", vertical="center")
+                cell.border = border
+
+        # Auto-adjust column widths
+        for col in range(1, len(headers) + 1):
+            column_letter = get_column_letter(col)
+            max_length = 0
+            for row in range(1, ws.max_row + 1):
+                cell_value = ws.cell(row=row, column=col).value
+                if cell_value:
+                    length = len(str(cell_value))
+                    if length > max_length:
+                        max_length = length
+            adjusted_width = min(max_length + 2, 40)
+            ws.column_dimensions[column_letter].width = adjusted_width
+
+        # Freeze header row
+        ws.freeze_panes = 'A2'
+
+        # Create response
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename=customers_export_{datetime.now().strftime("%Y%m%d_%H%M")}.xlsx'
+        
+        wb.save(response)
+        return response
+
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error', 
+            'message': f'Failed to export customers to Excel: {str(e)}'
+        }, status=500)
+
+
+@staff_member_required
+def export_customers_pdf(request):
+    """
+    Export all customers to PDF file
+    """
+    try:
+        # Create buffer for PDF
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer,
+            pagesize=landscape(letter),
+            rightMargin=30,
+            leftMargin=30,
+            topMargin=30,
+            bottomMargin=30
+        )
+
+        # Get customers with order data
+        customers = Customer.objects.all().order_by('-created_at')
+        
+        # Calculate totals
+        total_customers = customers.count()
+        total_orders = 0
+        total_revenue = 0
+        
+        customer_data = []
+        for customer in customers:
+            orders = Order.objects.filter(customer_email=customer.email)
+            order_count = orders.count()
+            total_spent = sum(float(o.total_amount) for o in orders)
+            total_orders += order_count
+            total_revenue += total_spent
+            
+            customer_data.append({
+                'customer': customer,
+                'order_count': order_count,
+                'total_spent': total_spent
+            })
+
+        # Styles
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=18,
+            textColor=colors.HexColor('#2C3E50'),
+            alignment=TA_CENTER,
+            spaceAfter=20
+        )
+        
+        header_style = ParagraphStyle(
+            'HeaderStyle',
+            parent=styles['Normal'],
+            fontSize=9,
+            textColor=colors.white,
+            alignment=TA_CENTER,
+            fontName='Helvetica-Bold'
+        )
+        
+        cell_style = ParagraphStyle(
+            'CellStyle',
+            parent=styles['Normal'],
+            fontSize=8,
+            alignment=TA_LEFT,
+            leading=10
+        )
+
+        # Build story
+        story = []
+        
+        # Title
+        story.append(Paragraph("Customer Report", title_style))
+        story.append(Spacer(1, 10))
+        
+        # Summary
+        summary_style = ParagraphStyle(
+            'SummaryStyle',
+            parent=styles['Normal'],
+            fontSize=11,
+            textColor=colors.HexColor('#34495E'),
+            alignment=TA_LEFT,
+            spaceAfter=8
+        )
+        story.append(Paragraph(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}", summary_style))
+        story.append(Paragraph(f"Total Customers: {total_customers}", summary_style))
+        story.append(Paragraph(f"Total Orders: {total_orders}", summary_style))
+        story.append(Paragraph(f"Total Revenue: ৳{total_revenue:,.2f}", summary_style))
+        story.append(Spacer(1, 15))
+
+        # Prepare table data
+        headers = [
+            'ID', 'Name', 'Email', 'Phone', 'District', 
+            'Status', 'Diabetes', 'BP', 'Orders', 'Total Spent', 'Created'
+        ]
+        
+        table_data = [headers]
+        
+        for data in customer_data:
+            customer = data['customer']
+            row = [
+                str(customer.id),
+                customer.name[:25] if customer.name else '',
+                customer.email[:25] if customer.email else '',
+                customer.phone or '',
+                customer.district or '',
+                'Active' if customer.is_active else 'Inactive',
+                'Diabetic' if customer.is_diabetic else 'Normal',
+                'High BP' if customer.has_high_blood_pressure else 'Normal',
+                str(data['order_count']),
+                f"৳{data['total_spent']:.2f}",
+                customer.created_at.strftime('%Y-%m-%d') if customer.created_at else ''
+            ]
+            table_data.append(row)
+
+        # Create table
+        table = Table(table_data, repeatRows=1)
+        
+        # Table style
+        table_style = TableStyle([
+            # Header
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2C3E50')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            
+            # Body
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
+            
+            # Borders
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#CCCCCC')),
+            
+            # Padding
+            ('TOPPADDING', (0, 0), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('LEFTPADDING', (0, 0), (-1, -1), 8),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 8),
+            
+            # Alternate row colors
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#F8F9FA')]),
+        ])
+        
+        # Column widths
+        col_widths = [
+            0.4*inch, 0.9*inch, 1.7*inch, 1.0*inch, 
+            0.6*inch, 0.5*inch, 0.6*inch, 0.5*inch,
+            0.5*inch, 0.8*inch, 0.7*inch
+        ]
+        table._argW = col_widths
+        
+        table.setStyle(table_style)
+        story.append(table)
+        
+        # Footer
+        story.append(Spacer(1, 15))
+        footer_style = ParagraphStyle(
+            'FooterStyle',
+            parent=styles['Normal'],
+            fontSize=9,
+            textColor=colors.HexColor('#7F8C8D'),
+            alignment=TA_CENTER
+        )
+        story.append(Paragraph("Generated by SuperWater Admin Panel", footer_style))
+
+        # Build PDF
+        doc.build(story)
+        buffer.seek(0)
+
+        # Create response
+        response = HttpResponse(buffer, content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename=customers_export_{datetime.now().strftime("%Y%m%d_%H%M")}.pdf'
+        return response
+
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error', 
+            'message': f'Failed to export customers to PDF: {str(e)}'
+        }, status=500)

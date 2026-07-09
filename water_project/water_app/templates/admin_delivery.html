@@ -233,6 +233,102 @@
         gap: 16px;
     }
     
+    /* Modal Overlay */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.6);
+        backdrop-filter: blur(4px);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+    .modal-overlay .modal-content {
+        background: white;
+        border-radius: 16px;
+        width: 100%;
+        max-width: 550px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        animation: slideUp 0.3s ease;
+    }
+    @keyframes slideUp {
+        from { transform: translateY(30px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+    .modal-overlay .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 24px;
+        border-bottom: 2px solid #e8ecf1;
+    }
+    .modal-overlay .modal-header h3 {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 700;
+        color: #2c3e50;
+    }
+    .modal-overlay .modal-header h3 i {
+        color: #007bff;
+        margin-right: 8px;
+    }
+    .modal-overlay .modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        color: #999;
+        cursor: pointer;
+        padding: 0 8px;
+        transition: all 0.3s;
+    }
+    .modal-overlay .modal-close:hover {
+        color: #dc3545;
+        transform: rotate(90deg);
+    }
+    .modal-overlay .modal-body {
+        padding: 24px;
+    }
+    .btn-cancel {
+        padding: 10px 24px;
+        background: #e8ecf1;
+        color: #2c3e50;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    .btn-cancel:hover {
+        background: #d5d9e0;
+    }
+    .btn-save {
+        padding: 10px 24px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .btn-save:hover {
+        background: #0056b3;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(0,123,255,0.3);
+    }
+    
     /* ===== Responsive ===== */
     @media (max-width: 768px) {
         .export-buttons {
@@ -257,82 +353,8 @@
 
 {% block content %}
 <div class="admin-delivery-page">
-    <!-- Sidebar Overlay -->
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
-    <!-- Sidebar -->
-    <div class="admin-sidebar" id="adminSidebar">
-        <div class="sidebar-header">
-            <div class="sidebar-logo">
-                <i class="fas fa-droplet"></i>
-                <span>Superwater</span>
-            </div>
-        </div>
-        <div class="sidebar-menu">
-            <a href="{% url 'admin_dashboard' %}">
-                <div class="menu-item">
-                    <i class="fas fa-th-large"></i>
-                    <span>Dashboard</span>
-                </div>
-            </a>
-            <a href="{% url 'admin_orders' %}">
-                <div class="menu-item">
-                    <i class="fas fa-shopping-bag"></i>
-                    <span>Orders</span>
-                   
-                </div>
-            </a>
-            <a href="{% url 'admin_products' %}">
-                <div class="menu-item">
-                    <i class="fas fa-box"></i>
-                    <span>Products</span>
-                   
-                </div>
-            </a>
-
-            <a href="#">
-                <div class="menu-item">
-                    <i class="fas fa-users"></i>
-                    <span>Customers</span>
-                   
-                </div>
-            </a>
-             <a href="{% url 'admin_delivery' %}">
-                <div class="menu-item active">
-                    <i class="fas fa-truck"></i>
-                    <span>Delivery</span>
-                 
-                </div>
-            </a>
-
-            <a href="#">
-                <div class="menu-item">
-                    <i class="fas fa-tags"></i>
-                    <span>Inventory</span>
-                </div>
-            </a>
-            <a href="#">
-                <div class="menu-item">
-                    <i class="fas fa-chart-line"></i>
-                    <span>Analytics</span>
-                </div>
-            </a>
-            <a href="#">
-                <div class="menu-item">
-                    <i class="fas fa-cog"></i>
-                    <span>Settings</span>
-                </div>
-            </a>
-        </div>
-        <div class="sidebar-footer">
-            <a href="{% url 'home' %}">
-                <div class="menu-item">
-                    <i class="fas fa-sign-out-alt"></i>
-                    <span>Logout</span>
-                </div>
-            </a>
-        </div>
-    </div>
+    <!-- Include Sidebar -->
+    {% include 'sidebar_nav.html' %}
 
     <!-- Main Content -->
     <div class="main-content" id="mainContent">
@@ -344,7 +366,7 @@
                 </button>
                 <div class="brand">
                     <i class="fas fa-droplet"></i>
-                    <span>Superwater</span>
+                    <span>Superwater- Delivery</span>
                 </div>
             </div>
             <div class="navbar-right">
