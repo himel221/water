@@ -23,9 +23,9 @@ function initializeInventory(products) {
 // ===== Update Stats =====
 function updateStats() {
     const total = currentProducts.length;
-    const inStock = currentProducts.filter(p => p.stock_quantity > 20).length;
-    const lowStock = currentProducts.filter(p => p.stock_quantity > 0 && p.stock_quantity <= 20).length;
-    const outOfStock = currentProducts.filter(p => p.stock_quantity === 0).length;
+    const inStock = currentProducts.filter(p => (p.inventory_total || 0) > 20).length;
+    const lowStock = currentProducts.filter(p => (p.inventory_total || 0) > 0 && (p.inventory_total || 0) <= 20).length;
+    const outOfStock = currentProducts.filter(p => (p.inventory_total || 0) === 0).length;
     
     const statNumbers = document.querySelectorAll('.stat-number');
     if (statNumbers.length >= 4) {
@@ -38,19 +38,16 @@ function updateStats() {
 
 // ===== Setup Event Listeners =====
 function setupEventListeners() {
-    // Search
     const searchInput = document.getElementById('searchInput');
     if (searchInput) {
         searchInput.addEventListener('input', debounce(filterProducts, 300));
     }
     
-    // Stock Filter
     const stockFilter = document.getElementById('stockFilter');
     if (stockFilter) {
         stockFilter.addEventListener('change', filterProducts);
     }
     
-    // Select All
     const selectAll = document.getElementById('selectAll');
     if (selectAll) {
         selectAll.addEventListener('change', function() {
@@ -60,29 +57,15 @@ function setupEventListeners() {
         });
     }
     
-    // Export Excel
-    const exportExcel = document.getElementById('exportExcel');
-    if (exportExcel) {
-        exportExcel.addEventListener('click', function() {
-            exportInventory('excel');
-        });
-    }
-    
-    // Export PDF
-    const exportPdf = document.getElementById('exportPdf');
-    if (exportPdf) {
-        exportPdf.addEventListener('click', function() {
-            exportInventory('pdf');
-        });
-    }
-    
-    // Refresh
-    const refreshBtn = document.getElementById('refreshBtn');
-    if (refreshBtn) {
-        refreshBtn.addEventListener('click', function() {
-            location.reload();
-        });
-    }
+    document.getElementById('exportExcel')?.addEventListener('click', function() {
+        exportInventory('excel');
+    });
+    document.getElementById('exportPdf')?.addEventListener('click', function() {
+        exportInventory('pdf');
+    });
+    document.getElementById('refreshBtn')?.addEventListener('click', function() {
+        location.reload();
+    });
     
     // View Product
     document.addEventListener('click', function(e) {
@@ -90,30 +73,6 @@ function setupEventListeners() {
         if (viewBtn) {
             const productId = viewBtn.dataset.productId;
             if (productId) viewProduct(productId);
-        }
-    });
-    
-    // Edit Product
-    document.addEventListener('click', function(e) {
-        const editBtn = e.target.closest('.btn-edit');
-        if (editBtn) {
-            const productId = editBtn.dataset.productId;
-            if (productId) {
-                window.open(`/admin/water_app/product/${productId}/change/`, '_blank');
-            }
-        }
-    });
-    
-    // Delete Product
-    document.addEventListener('click', function(e) {
-        const deleteBtn = e.target.closest('.btn-delete');
-        if (deleteBtn) {
-            const productId = deleteBtn.dataset.productId;
-            if (productId) {
-                if (confirm('Are you sure you want to delete this product?')) {
-                    deleteProduct(productId);
-                }
-            }
         }
     });
     
@@ -126,27 +85,40 @@ function setupEventListeners() {
         }
     });
     
+    // 🔥 Edit Inventory Product
+    document.addEventListener('click', function(e) {
+        const editBtn = e.target.closest('.btn-edit-inventory');
+        if (editBtn) {
+            e.preventDefault();
+            const productId = editBtn.dataset.productId;
+            if (productId) {
+                editInventoryProduct(productId);
+            }
+        }
+    });
+    
+    // 🔥 Delete Inventory Product
+    document.addEventListener('click', function(e) {
+        const deleteBtn = e.target.closest('.btn-delete-inventory');
+        if (deleteBtn) {
+            e.preventDefault();
+            const productId = deleteBtn.dataset.productId;
+            if (productId) {
+                deleteInventoryProduct(productId);
+            }
+        }
+    });
+    
     // Modal Close
-    const closeViewModal = document.getElementById('closeViewModal');
-    if (closeViewModal) {
-        closeViewModal.addEventListener('click', function() {
-            document.getElementById('viewProductModal').style.display = 'none';
-        });
-    }
-    
-    const closeStockModal = document.getElementById('closeStockModal');
-    if (closeStockModal) {
-        closeStockModal.addEventListener('click', function() {
-            document.getElementById('addStockModal').style.display = 'none';
-        });
-    }
-    
-    const cancelStockBtn = document.getElementById('cancelStockBtn');
-    if (cancelStockBtn) {
-        cancelStockBtn.addEventListener('click', function() {
-            document.getElementById('addStockModal').style.display = 'none';
-        });
-    }
+    document.getElementById('closeViewModal')?.addEventListener('click', function() {
+        document.getElementById('viewProductModal').style.display = 'none';
+    });
+    document.getElementById('closeStockModal')?.addEventListener('click', function() {
+        document.getElementById('addStockModal').style.display = 'none';
+    });
+    document.getElementById('cancelStockBtn')?.addEventListener('click', function() {
+        document.getElementById('addStockModal').style.display = 'none';
+    });
     
     // Close modals on overlay click
     document.querySelectorAll('.modal-overlay').forEach(modal => {
@@ -157,7 +129,7 @@ function setupEventListeners() {
         });
     });
     
-    // Keyboard shortcut: Escape to close modals
+    // Escape key
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             document.querySelectorAll('.modal-overlay').forEach(m => m.style.display = 'none');
@@ -165,21 +137,14 @@ function setupEventListeners() {
     });
     
     // Add Stock Form Submit
-    const addStockForm = document.getElementById('addStockForm');
-    if (addStockForm) {
-        addStockForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            saveAddStock();
-        });
-    }
+    document.getElementById('addStockForm')?.addEventListener('submit', function(e) {
+        e.preventDefault();
+        saveAddStock();
+    });
     
-    // Stock quantity input - update preview
-    const addStockQuantity = document.getElementById('addStockQuantity');
-    if (addStockQuantity) {
-        addStockQuantity.addEventListener('input', function() {
-            updateStockPreview();
-        });
-    }
+    document.getElementById('addStockQuantity')?.addEventListener('input', function() {
+        updateStockPreview();
+    });
     
     // Pagination
     document.querySelectorAll('.page-btn').forEach(btn => {
@@ -198,7 +163,6 @@ function setupEventListeners() {
     });
 }
 
-// ===== Debounce Function =====
 function debounce(func, wait) {
     let timeout;
     return function executedFunction(...args) {
@@ -221,9 +185,9 @@ function filterProducts() {
     
     filteredProducts = currentProducts.filter(product => {
         const matchSearch = !search || 
-            product.name.toLowerCase().includes(search);
+            (product.name || '').toLowerCase().includes(search);
         
-        const stockQty = product.stock_quantity || 0;
+        const stockQty = product.inventory_total || 0;
         let matchStock = true;
         if (stock === 'in-stock') matchStock = stockQty > 20;
         else if (stock === 'low-stock') matchStock = stockQty > 0 && stockQty <= 20;
@@ -247,7 +211,7 @@ function renderTable() {
     if (filteredProducts.length === 0) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="10" class="no-data">
+                <td colspan="9" class="no-data">
                     <i class="fas fa-box-open"></i>
                     <h3>No Products Found</h3>
                     <p>Try adjusting your filters or search terms.</p>
@@ -265,9 +229,7 @@ function renderTable() {
     
     let html = '';
     pageProducts.forEach(product => {
-        const stockQty = product.stock_quantity || 0;
-        const inventoryTotal = product.inventory_total || 0;
-        const inventoryValue = (product.price || 0) * inventoryTotal;
+        const stockQty = product.inventory_total || 0;
         
         let stockHtml;
         if (stockQty > 20) {
@@ -311,11 +273,8 @@ function renderTable() {
                 <td>${stockHtml}</td>
                 <td>
                     <span class="inventory-badge">
-                        <i class="fas fa-warehouse"></i> ${inventoryTotal}
+                        <i class="fas fa-warehouse"></i> ${product.stock_quantity || 0}
                     </span>
-                </td>
-                <td>
-                    <span class="inventory-value">৳${inventoryValue.toFixed(2)}</span>
                 </td>
                 <td>${statusHtml}</td>
                 <td>
@@ -326,8 +285,8 @@ function renderTable() {
                     <div class="action-buttons">
                         <button class="btn-view" data-product-id="${product.id}" title="View Details"><i class="fas fa-eye"></i></button>
                         <button class="btn-add-stock" data-product-id="${product.id}" title="Add Stock"><i class="fas fa-plus-circle"></i></button>
-                        <button class="btn-edit" data-product-id="${product.id}" title="Edit Product"><i class="fas fa-edit"></i></button>
-                        <button class="btn-delete" data-product-id="${product.id}" title="Delete"><i class="fas fa-trash"></i></button>
+                        <button class="btn-edit-inventory" data-product-id="${product.id}" title="Edit Inventory"><i class="fas fa-edit"></i></button>
+                        <button class="btn-delete-inventory" data-product-id="${product.id}" title="Delete Inventory"><i class="fas fa-trash"></i></button>
                     </div>
                 </td>
             </tr>
@@ -338,7 +297,6 @@ function renderTable() {
     if (totalCount) totalCount.textContent = filteredProducts.length;
     updatePagination();
     
-    // Re-bind select all state
     const selectAll = document.getElementById('selectAll');
     if (selectAll) {
         const checkboxes = document.querySelectorAll('.product-checkbox');
@@ -359,9 +317,9 @@ function viewProduct(productId) {
     const body = document.getElementById('productDetailBody');
     if (!modal || !body) return;
     
-    const stockQty = product.stock_quantity || 0;
-    const inventoryTotal = product.inventory_total || 0;
-    const inventoryValue = (product.price || 0) * inventoryTotal;
+    const stockQty = product.inventory_total || 0;
+    const stockQuantity = product.stock_quantity || 0;
+    const totalAvailable = stockQty + stockQuantity;
     
     body.innerHTML = `
         <div style="text-align: center; margin-bottom: 20px;">
@@ -381,16 +339,16 @@ function viewProduct(productId) {
                 <span class="value price">৳${(product.price || 0).toFixed(2)}</span>
             </div>
             <div class="modal-detail-item">
-                <span class="label"><i class="fas fa-boxes"></i> Stock</span>
+                <span class="label"><i class="fas fa-boxes"></i> Inventory Stock</span>
                 <span class="value stock-value">${stockQty}</span>
             </div>
             <div class="modal-detail-item">
-                <span class="label"><i class="fas fa-warehouse"></i> Inventory</span>
-                <span class="value inventory-value">${inventoryTotal}</span>
+                <span class="label"><i class="fas fa-warehouse"></i> Stock Quantity</span>
+                <span class="value stock-value">${stockQuantity}</span>
             </div>
             <div class="modal-detail-item">
-                <span class="label"><i class="fas fa-money-bill"></i> Inventory Value</span>
-                <span class="value inventory-value">৳${inventoryValue.toFixed(2)}</span>
+                <span class="label"><i class="fas fa-cubes"></i> Total Available</span>
+                <span class="value inventory-value">${totalAvailable}</span>
             </div>
             ${product.is_on_sale && product.discount_price ? `
             <div class="modal-detail-item">
@@ -424,6 +382,9 @@ function viewProduct(productId) {
             <button onclick="openAddStockModal(${product.id})" style="padding: 8px 20px; background: #28a745; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
                 <i class="fas fa-plus-circle"></i> Add Stock
             </button>
+            <button onclick="editInventoryProduct(${product.id})" style="padding: 8px 20px; background: #f39c12; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                <i class="fas fa-edit"></i> Edit Inventory
+            </button>
         </div>
     `;
     
@@ -443,9 +404,9 @@ function openAddStockModal(productId) {
     
     document.getElementById('stockProductId').value = product.id;
     document.getElementById('stockProductName').textContent = product.name;
-    document.getElementById('currentStock').textContent = product.stock_quantity || 0;
+    document.getElementById('currentStock').textContent = product.inventory_total || 0;
     document.getElementById('addStockQuantity').value = '';
-    document.getElementById('newStockAfterAdd').textContent = product.stock_quantity || 0;
+    document.getElementById('newStockAfterAdd').textContent = product.inventory_total || 0;
     
     modal.style.display = 'flex';
 }
@@ -458,7 +419,10 @@ function updateStockPreview() {
     document.getElementById('newStockAfterAdd').textContent = newStock;
 }
 
-// ===== Save Add Stock =====
+// ============================================================
+// 🔥 SAVE ADD STOCK - আপডেটেড (product_id সহ URL)
+// ============================================================
+
 function saveAddStock() {
     const productId = document.getElementById('stockProductId').value;
     const addQuantity = document.getElementById('addStockQuantity').value;
@@ -470,25 +434,43 @@ function saveAddStock() {
     
     const csrfToken = getCookie('csrftoken');
     
-    const btn = document.querySelector('.btn-save');
+    const btn = document.querySelector('#addStockForm .btn-save');
     const originalText = btn ? btn.innerHTML : 'Save';
     if (btn) {
         btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adding...';
         btn.disabled = true;
     }
     
-    fetch(`/api/inventory/${productId}/add-stock/`, {
+    // 🔥 product_id সহ URL ব্যবহার করুন
+    const url = `/api/inventory/${productId}/add-stock/`;
+    console.log('📤 Sending request to:', url);
+    console.log('📤 Data:', { quantity: parseInt(addQuantity) });
+    
+    fetch(url, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
         },
-        body: JSON.stringify({ quantity: parseInt(addQuantity) })
+        credentials: 'same-origin',
+        body: JSON.stringify({ 
+            quantity: parseInt(addQuantity) 
+        })
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('📥 Response status:', response.status);
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.message || `HTTP ${response.status}`);
+            });
+        }
+        return response.json();
+    })
     .then(data => {
+        console.log('📦 Response data:', data);
         if (data.status === 'success') {
-            showToast('Stock added successfully!', 'success');
+            showToast('✅ Stock added successfully!', 'success');
             document.getElementById('addStockModal').style.display = 'none';
             setTimeout(() => location.reload(), 1000);
         } else {
@@ -500,8 +482,8 @@ function saveAddStock() {
         }
     })
     .catch(error => {
-        console.error('Error:', error);
-        showToast('Error adding stock. Please try again.', 'error');
+        console.error('❌ Error:', error);
+        showToast('❌ Error adding stock: ' + (error.message || 'Please try again.'), 'error');
         if (btn) {
             btn.innerHTML = originalText;
             btn.disabled = false;
@@ -509,36 +491,326 @@ function saveAddStock() {
     });
 }
 
-// ===== Delete Product =====
-function deleteProduct(productId) {
+// ============================================================
+// 🔥 DELETE INVENTORY PRODUCT (শুধু ইনভেন্টরি থেকে ডিলিট)
+// ============================================================
+
+function deleteInventoryProduct(productId) {
+    if (!confirm('⚠️ Are you sure you want to delete this inventory record?\n\nThe product will remain in admin_products.')) {
+        return;
+    }
+    
     const csrfToken = getCookie('csrftoken');
     
-    fetch(`/api/products/${productId}/delete/`, {
+    showToast('🔄 Deleting inventory record...', 'info');
+    
+    fetch(`/api/inventory/${productId}/delete/`, {
         method: 'DELETE',
         headers: {
-            'Content-Type': 'application/json',
-            'X-CSRFToken': csrfToken
-        }
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin'
     })
     .then(response => response.json())
     .then(data => {
         if (data.status === 'success') {
-            currentProducts = currentProducts.filter(p => p.id != productId);
-            filteredProducts = filteredProducts.filter(p => p.id != productId);
-            renderTable();
-            updateStats();
-            showToast('Product deleted successfully!', 'success');
+            showToast('✅ Inventory record deleted successfully!', 'success');
+            setTimeout(() => location.reload(), 1000);
         } else {
-            showToast(data.message || 'Failed to delete product', 'error');
+            showToast('❌ ' + data.message, 'error');
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        showToast('Error deleting product. Please try again.', 'error');
+        showToast('❌ Error deleting inventory record', 'error');
     });
 }
 
-// ===== Export Inventory =====
+// ============================================================
+// 🔥 EDIT INVENTORY PRODUCT (শুধু ইনভেন্টরি এডিট)
+// ============================================================
+
+function editInventoryProduct(productId) {
+    const product = currentProducts.find(p => p.id == productId);
+    if (!product) {
+        showToast('Product not found!', 'error');
+        return;
+    }
+    
+    const currentInventory = product.inventory_total || 0;
+    const stockQuantity = product.stock_quantity || 0;
+    
+    // Prompt with current value
+    const newQuantity = prompt(
+        `Edit Inventory for: ${product.name}\n\n` +
+        `Current Inventory Stock: ${currentInventory}\n` +
+        `Stock Quantity (admin_products): ${stockQuantity}\n\n` +
+        `Enter new inventory quantity:`,
+        currentInventory
+    );
+    
+    if (newQuantity === null) return; // Cancel
+    
+    const quantity = parseInt(newQuantity);
+    if (isNaN(quantity) || quantity < 0) {
+        showToast('❌ Please enter a valid quantity (0 or more)', 'error');
+        return;
+    }
+    
+    const csrfToken = getCookie('csrftoken');
+    
+    showToast('🔄 Updating inventory...', 'info');
+    
+    fetch(`/api/inventory/${productId}/edit/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+            inventory_quantity: quantity
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            showToast('✅ Inventory updated successfully!', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast('❌ ' + data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showToast('❌ Error updating inventory', 'error');
+    });
+}
+
+// ============================================================
+// 🔥 SETUP ADD INVENTORY MODAL
+// ============================================================
+
+function setupAddInventoryModal() {
+    const modal = document.getElementById('addInventoryModal');
+    const openBtn = document.getElementById('openAddInventoryBtn');
+    const closeBtn = document.getElementById('closeInventoryModal');
+    const cancelBtn = document.getElementById('cancelInventoryBtn');
+    const form = document.getElementById('addInventoryForm');
+    const productNameInput = document.getElementById('productNameInput');
+    const quantityInput = document.getElementById('inventoryQuantity');
+    const notesInput = document.getElementById('inventoryNotes');
+    
+    // Check if elements exist
+    if (!modal || !openBtn || !form) {
+        console.warn('⚠️ Required elements not found for add inventory modal');
+        return;
+    }
+    
+    // Open Modal
+    openBtn.addEventListener('click', function() {
+        modal.classList.add('show');
+        modal.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        if (form) form.reset();
+        if (productNameInput) productNameInput.focus();
+    });
+    
+    // Close Modal functions
+    function closeModalFunc() {
+        modal.classList.remove('show');
+        modal.style.display = 'none';
+        document.body.style.overflow = 'auto';
+    }
+    
+    if (closeBtn) closeBtn.addEventListener('click', closeModalFunc);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeModalFunc);
+    
+    // Close on overlay click
+    modal.addEventListener('click', function(e) {
+        if (e.target === this) closeModalFunc();
+    });
+    
+    // Close on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && modal.classList.contains('show')) closeModalFunc();
+    });
+    
+    // Enter key to submit
+    if (productNameInput) {
+        productNameInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                if (quantityInput) quantityInput.focus();
+            }
+        });
+    }
+    
+    if (quantityInput) {
+        quantityInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                form.dispatchEvent(new Event('submit'));
+            }
+        });
+    }
+    
+    // Form Submit
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        if (!productNameInput || !quantityInput) {
+            showToast('Form elements not found!', 'error');
+            return;
+        }
+        
+        const productName = productNameInput.value.trim();
+        const quantity = parseInt(quantityInput.value);
+        const notes = notesInput ? notesInput.value.trim() : '';
+        
+        // Validation
+        if (!productName) {
+            showToast('Please enter product name!', 'error');
+            productNameInput.focus();
+            productNameInput.style.borderColor = '#dc3545';
+            setTimeout(() => {
+                productNameInput.style.borderColor = '';
+            }, 3000);
+            return;
+        }
+        
+        if (!quantity || quantity < 1) {
+            showToast('Please enter a valid quantity!', 'error');
+            quantityInput.focus();
+            quantityInput.style.borderColor = '#dc3545';
+            setTimeout(() => {
+                quantityInput.style.borderColor = '';
+            }, 3000);
+            return;
+        }
+        
+        // Check if product already exists
+        const existingProduct = currentProducts.find(p => 
+            p.name.toLowerCase() === productName.toLowerCase()
+        );
+        
+        if (existingProduct) {
+            // Product exists, add stock to existing product
+            if (confirm(`Product "${productName}" already exists with ${existingProduct.inventory_total || 0} units.\nDo you want to add ${quantity} more?`)) {
+                addStockToExistingProduct(existingProduct.id, productName, quantity, notes);
+            }
+            return;
+        }
+        
+        // Product doesn't exist - Create using new API
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || getCookie('csrftoken');
+        const submitBtn = form.querySelector('.btn-submit-modal');
+        const originalText = submitBtn ? submitBtn.innerHTML : 'Create';
+        if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creating...';
+            submitBtn.disabled = true;
+        }
+        
+        const productData = {
+            name: productName,
+            quantity: quantity,
+            price: 0,
+            description: notes || ''
+        };
+        
+        console.log('📤 Creating product via API:', productData);
+        
+        fetch('/api/inventory/add-product-by-name/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(productData)
+        })
+        .then(response => {
+            console.log('📥 Response status:', response.status);
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.message || data.error || `HTTP ${response.status}`);
+                }).catch(() => {
+                    throw new Error(`HTTP ${response.status}`);
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('✅ Response data:', data);
+            if (data.status === 'success') {
+                showToast('✅ ' + data.message, 'success');
+                closeModalFunc();
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showToast('❌ Failed: ' + (data.message || 'Unknown error'), 'error');
+                if (submitBtn) {
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
+                }
+            }
+        })
+        .catch(error => {
+            console.error('❌ Error:', error);
+            showToast('❌ Error: ' + (error.message || 'Please try again.'), 'error');
+            if (submitBtn) {
+                submitBtn.innerHTML = originalText;
+                submitBtn.disabled = false;
+            }
+        });
+    });
+}
+
+// ============================================================
+// 🔥 ADD STOCK TO EXISTING PRODUCT
+// ============================================================
+
+function addStockToExistingProduct(productId, productName, quantity, notes) {
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || getCookie('csrftoken');
+    
+    showToast('➕ Adding stock to existing product...', 'info');
+    
+    // 🔥 product_id সহ URL ব্যবহার করুন
+    const url = `/api/inventory/${productId}/add-stock/`;
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
+        },
+        credentials: 'same-origin',
+        body: JSON.stringify({
+            quantity: parseInt(quantity)
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            showToast('✅ Added ' + quantity + ' units to "' + productName + '"!', 'success');
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            showToast('❌ Failed to add stock: ' + (data.message || 'Unknown error'), 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Add stock error:', error);
+        showToast('❌ Error adding stock. Please try again.', 'error');
+    });
+}
+
+// ============================================================
+// 🔥 EXPORT INVENTORY
+// ============================================================
+
 function exportInventory(format) {
     const url = `/api/inventory/export/${format}/`;
     
@@ -550,26 +822,26 @@ function exportInventory(format) {
     }
     
     fetch(url)
-        .then(response => {
+        .then(function(response) {
             if (!response.ok) throw new Error('Export failed');
             return response.blob();
         })
-        .then(blob => {
+        .then(function(blob) {
             const link = document.createElement('a');
             link.href = URL.createObjectURL(blob);
             const extension = format === 'excel' ? 'xlsx' : 'pdf';
-            link.download = `inventory_${new Date().toISOString().slice(0,10)}.${extension}`;
+            link.download = 'inventory_' + new Date().toISOString().slice(0,10) + '.' + extension;
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
             URL.revokeObjectURL(link.href);
-            showToast(`Inventory exported successfully as ${format.toUpperCase()}!`, 'success');
+            showToast('✅ Inventory exported successfully as ' + format.toUpperCase() + '!', 'success');
         })
-        .catch(error => {
+        .catch(function(error) {
             console.error('Export error:', error);
-            showToast('Failed to export inventory. Please try again.', 'error');
+            showToast('❌ Failed to export inventory. Please try again.', 'error');
         })
-        .finally(() => {
+        .finally(function() {
             if (btn) {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
@@ -577,48 +849,10 @@ function exportInventory(format) {
         });
 }
 
-// ===== Toast Notification =====
-function showToast(message, type = 'info') {
-    const existingToast = document.querySelector('.toast-notification');
-    if (existingToast) existingToast.remove();
-    
-    const toast = document.createElement('div');
-    toast.className = `toast-notification toast-${type}`;
-    toast.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
-            <span>${message}</span>
-        </div>
-        <button onclick="this.parentElement.remove()" style="background: none; border: none; color: inherit; cursor: pointer;">
-            <i class="fas fa-times"></i>
-        </button>
-    `;
-    toast.style.cssText = `
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        padding: 12px 20px;
-        border-radius: 8px;
-        color: white;
-        z-index: 10000;
-        min-width: 280px;
-        max-width: 450px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        animation: slideUp 0.3s ease;
-        background: ${type === 'success' ? '#28a745' : type === 'error' ? '#dc3545' : '#007bff'};
-        font-family: system-ui, -apple-system, sans-serif;
-    `;
-    document.body.appendChild(toast);
-    
-    setTimeout(() => {
-        if (toast.parentElement) toast.remove();
-    }, 5000);
-}
+// ============================================================
+// 🔥 HELPER FUNCTIONS
+// ============================================================
 
-// ===== Helper Functions =====
 function formatDate(dateString) {
     if (!dateString) return 'N/A';
     try {
@@ -674,7 +908,38 @@ function closeModal(modalId) {
     if (modal) modal.style.display = 'none';
 }
 
-// ===== Pagination =====
+// ============================================================
+// 🔥 TOAST NOTIFICATION
+// ============================================================
+
+function showToast(message, type) {
+    type = type || 'info';
+    
+    const existingToast = document.querySelector('.toast-notification');
+    if (existingToast) existingToast.remove();
+    
+    const toast = document.createElement('div');
+    toast.className = 'toast-notification ' + type;
+    toast.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <i class="fas ${type === 'success' ? 'fa-check-circle' : type === 'error' ? 'fa-exclamation-circle' : 'fa-info-circle'}"></i>
+            <span>${message}</span>
+        </div>
+        <button onclick="this.parentElement.remove()">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    document.body.appendChild(toast);
+    
+    setTimeout(function() {
+        if (toast.parentElement) toast.remove();
+    }, 5000);
+}
+
+// ============================================================
+// 🔥 PAGINATION
+// ============================================================
+
 function changePage(direction) {
     const totalPages = Math.max(1, Math.ceil(filteredProducts.length / itemsPerPage));
     const newPage = currentPage + direction;
@@ -774,7 +1039,10 @@ function createDotsButton() {
     return btn;
 }
 
-// ===== Sidebar Toggle =====
+// ============================================================
+// 🔥 SIDEBAR TOGGLE
+// ============================================================
+
 document.addEventListener('DOMContentLoaded', function() {
     const sidebarToggle = document.getElementById('sidebarToggle');
     const sidebar = document.getElementById('adminSidebar');
@@ -806,18 +1074,25 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// ===== Make functions global =====
+// ============================================================
+// 🔥 MAKE FUNCTIONS GLOBAL
+// ============================================================
+
 window.initializeInventory = initializeInventory;
 window.renderTable = renderTable;
 window.filterProducts = filterProducts;
 window.viewProduct = viewProduct;
 window.openAddStockModal = openAddStockModal;
 window.saveAddStock = saveAddStock;
-window.deleteProduct = deleteProduct;
 window.exportInventory = exportInventory;
 window.showToast = showToast;
 window.closeModal = closeModal;
 window.goToPage = goToPage;
 window.changePage = changePage;
+window.setupAddInventoryModal = setupAddInventoryModal;
+window.addStockToExistingProduct = addStockToExistingProduct;
+window.deleteInventoryProduct = deleteInventoryProduct;
+window.editInventoryProduct = editInventoryProduct;
 
 console.log('✅ Admin Inventory JavaScript loaded successfully!');
+console.log('🔧 Edit & Delete inventory features enabled');

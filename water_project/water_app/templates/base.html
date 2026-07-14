@@ -48,9 +48,10 @@
             <button type="button" class="header-cart-icon {% if active_page == 'cart' %}active{% endif %}" id="openGlobalCartBtn" aria-label="View cart">
                 <i class="fas fa-shopping-cart"></i>
             </button>
-            <button class="btn-signin">
+            <!-- Sign In button linked to registration page -->
+            <a href="{% url 'register' %}" class="btn-signin">
                 <i class="fas fa-user"></i> Sign In
-            </button>
+            </a>
         </div>
     </header>
 

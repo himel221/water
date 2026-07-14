@@ -1,0 +1,548 @@
+/* login.css - Superwater Login Styles */
+
+/* ============================================
+   Page Container
+   ============================================ */
+.login-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 40px 20px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
+}
+
+.login-container {
+    display: flex;
+    max-width: 1000px;
+    width: 100%;
+    background: #ffffff;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
+    min-height: 500px;
+}
+
+/* ============================================
+   Left Side - Info/Branding
+   ============================================ */
+.login-info {
+    flex: 1;
+    background: linear-gradient(135deg, #1a5276 0%, #2e86c1 100%);
+    padding: 50px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    min-width: 280px;
+}
+
+.info-content {
+    max-width: 320px;
+    width: 100%;
+}
+
+.info-logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 30px;
+}
+
+.info-logo i {
+    font-size: 32px;
+    color: #80bdff;
+}
+
+.info-content h2 {
+    font-size: 28px;
+    margin-bottom: 12px;
+    font-weight: 700;
+}
+
+.info-content > p {
+    font-size: 16px;
+    opacity: 0.9;
+    margin-bottom: 30px;
+    line-height: 1.6;
+}
+
+.info-features {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 40px;
+}
+
+.feature-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 15px;
+}
+
+.feature-item i {
+    color: #80bdff;
+    font-size: 18px;
+    flex-shrink: 0;
+}
+
+.info-footer {
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    padding-top: 20px;
+}
+
+.info-footer p {
+    font-size: 15px;
+    opacity: 0.9;
+}
+
+.info-footer a {
+    color: white;
+    font-weight: 600;
+    text-decoration: underline;
+    transition: opacity 0.2s;
+}
+
+.info-footer a:hover {
+    opacity: 0.8;
+}
+
+/* ============================================
+   Right Side - Login Form
+   ============================================ */
+.login-form {
+    flex: 1.5;
+    padding: 40px 45px;
+    background: #ffffff;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.form-header {
+    margin-bottom: 28px;
+}
+
+.form-header h3 {
+    font-size: 24px;
+    color: #2c3e50;
+    margin-bottom: 6px;
+}
+
+.form-header p {
+    color: #7f8c8d;
+    font-size: 15px;
+}
+
+/* ============================================
+   Form Groups
+   ============================================ */
+.form-group {
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    font-size: 14px;
+    color: #2c3e50;
+    margin-bottom: 6px;
+}
+
+.required {
+    color: #dc3545;
+    margin-left: 2px;
+}
+
+/* ============================================
+   Form Controls
+   ============================================ */
+.form-control {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background: #fafafa;
+    font-family: 'Inter', Arial, sans-serif;
+}
+
+.form-control:focus {
+    border-color: #007bff;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.15);
+    background: #ffffff;
+}
+
+.form-control.invalid {
+    border-color: #dc3545;
+    background: #fff5f5;
+}
+
+.form-control.valid {
+    border-color: #28a745;
+    background: #f5fff5;
+}
+
+.form-control::placeholder {
+    color: #b0b8c4;
+}
+
+/* ============================================
+   Input Icons
+   ============================================ */
+.input-icon {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #b0b8c4;
+    font-size: 16px;
+    pointer-events: none;
+}
+
+.form-group .form-control {
+    padding-right: 40px;
+}
+
+/* ============================================
+   Field Error
+   ============================================ */
+.field-error {
+    color: #dc3545;
+    font-size: 13px;
+    margin-top: 4px;
+    display: none;
+}
+
+.field-error[style*="display: block"] {
+    display: block !important;
+}
+
+/* ============================================
+   Password Wrapper
+   ============================================ */
+.password-wrapper {
+    position: relative;
+}
+
+.password-wrapper .form-control {
+    padding-right: 50px;
+}
+
+.password-toggle {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: #b0b8c4;
+    cursor: pointer;
+    padding: 4px 8px;
+    font-size: 16px;
+    transition: color 0.2s;
+}
+
+.password-toggle:hover {
+    color: #2c3e50;
+}
+
+/* ============================================
+   Form Options (Remember Me & Forgot Password)
+   ============================================ */
+.form-options {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.checkbox-label {
+    display: flex !important;
+    align-items: center;
+    gap: 10px;
+    font-weight: 400 !important;
+    font-size: 14px !important;
+    cursor: pointer;
+    color: #2c3e50;
+}
+
+.checkbox-label input[type="checkbox"] {
+    display: none;
+}
+
+.checkmark {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    border: 2px solid #d1d5db;
+    border-radius: 4px;
+    position: relative;
+    transition: all 0.2s;
+}
+
+.checkbox-label input:checked + .checkmark {
+    background: #007bff;
+    border-color: #007bff;
+}
+
+.checkbox-label input:checked + .checkmark::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 12px;
+}
+
+.forgot-password {
+    color: #007bff;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: color 0.2s;
+}
+
+.forgot-password:hover {
+    color: #0056b3;
+    text-decoration: underline;
+}
+
+/* ============================================
+   Submit Button
+   ============================================ */
+.btn-login {
+    width: 100%;
+    padding: 14px;
+    font-size: 17px;
+    font-weight: 600;
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: 'Inter', Arial, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-top: 6px;
+}
+
+.btn-login:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 123, 255, 0.35);
+}
+
+.btn-login:active {
+    transform: translateY(0);
+}
+
+.btn-login:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ============================================
+   Form Footer
+   ============================================ */
+.form-footer {
+    text-align: center;
+    margin-top: 18px;
+    font-size: 14px;
+    color: #7f8c8d;
+}
+
+.form-footer a {
+    color: #007bff;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.form-footer a:hover {
+    text-decoration: underline;
+}
+
+/* ============================================
+   Demo Credentials
+   ============================================ */
+.demo-credentials {
+    margin-top: 24px;
+    padding: 16px 20px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    border: 1px solid #e9ecef;
+}
+
+.demo-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+}
+
+.demo-row {
+    display: flex;
+    gap: 8px;
+    font-size: 14px;
+    padding: 2px 0;
+}
+
+.demo-label {
+    color: #6c757d;
+    min-width: 65px;
+}
+
+.demo-value {
+    color: #2c3e50;
+    font-weight: 500;
+    font-family: 'Courier New', monospace;
+}
+
+/* ============================================
+   Messages
+   ============================================ */
+.messages {
+    margin-bottom: 20px;
+}
+
+.alert {
+    padding: 12px 16px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+}
+
+.alert-success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.alert-error {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.alert-info {
+    background: #d1ecf1;
+    color: #0c5460;
+    border: 1px solid #bee5eb;
+}
+
+.alert i {
+    font-size: 18px;
+}
+
+/* ============================================
+   Responsive Design
+   ============================================ */
+@media (max-width: 992px) {
+    .login-container {
+        flex-direction: column;
+        max-width: 500px;
+    }
+    
+    .login-info {
+        padding: 30px 30px;
+        min-width: unset;
+    }
+    
+    .info-content {
+        max-width: 100%;
+    }
+    
+    .info-features {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+    }
+    
+    .login-form {
+        padding: 30px 30px;
+    }
+}
+
+@media (max-width: 768px) {
+    .login-page {
+        padding: 20px 12px;
+    }
+    
+    .login-container {
+        border-radius: 12px;
+    }
+    
+    .login-info {
+        padding: 24px 20px;
+    }
+    
+    .info-logo {
+        font-size: 22px;
+    }
+    
+    .info-content h2 {
+        font-size: 22px;
+    }
+    
+    .info-features {
+        grid-template-columns: 1fr;
+        gap: 10px;
+    }
+    
+    .login-form {
+        padding: 24px 20px;
+    }
+    
+    .form-header h3 {
+        font-size: 20px;
+    }
+    
+    .form-options {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .demo-row {
+        flex-direction: column;
+        gap: 2px;
+    }
+}
+
+@media (max-width: 480px) {
+    .login-page {
+        padding: 12px 8px;
+    }
+    
+    .login-info {
+        padding: 20px 16px;
+    }
+    
+    .login-form {
+        padding: 20px 16px;
+    }
+    
+    .btn-login {
+        font-size: 15px;
+        padding: 12px;
+    }
+    
+    .demo-credentials {
+        padding: 12px 16px;
+    }
+}

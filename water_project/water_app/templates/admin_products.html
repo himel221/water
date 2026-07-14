@@ -44,13 +44,6 @@
         font-size: 15px;
     }
     
-    .price-original {
-        font-size: 13px;
-        color: #999;
-        text-decoration: line-through;
-        display: block;
-    }
-    
     .discount-percent-badge {
         display: inline-block;
         background: #dc3545;
@@ -344,6 +337,28 @@
         box-shadow: 0 4px 15px rgba(0,123,255,0.3);
     }
     
+    /* ===== Inventory Check Warning ===== */
+    .inventory-warning {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 8px;
+        padding: 10px 14px;
+        margin-top: 8px;
+        display: none;
+        font-size: 13px;
+        color: #856404;
+    }
+    .inventory-warning.show {
+        display: block;
+    }
+    .inventory-warning i {
+        color: #856404;
+    }
+    .inventory-warning .highlight {
+        font-weight: 700;
+        color: #dc3545;
+    }
+    
     /* ===== Responsive ===== */
     @media (max-width: 768px) {
         .export-buttons {
@@ -389,7 +404,7 @@
                 </button>
                 <div class="brand">
                     <i class="fas fa-droplet"></i>
-                    <span>Superwater- Products</span>
+                    <span>Superwater - Products</span>
                 </div>
             </div>
             <div class="navbar-right">
@@ -657,6 +672,15 @@
                     <div class="form-group">
                         <label for="productStockQuantity">Stock Quantity <span style="color: red;">*</span></label>
                         <input type="number" class="form-control" id="productStockQuantity" placeholder="0" min="0" required />
+                        <small style="color: #6c757d; font-size: 11px;">
+                            <i class="fas fa-info-circle"></i> 
+                            <span style="color: #dc3545; font-weight: 600;">⚠️ This will be taken from Inventory Stock</span>
+                        </small>
+                        <!-- 🔥 Inventory Warning -->
+                        <div id="inventoryWarning" class="inventory-warning">
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <span>Insufficient inventory! Available: <span id="availableInventory">0</span>, Required: <span id="requiredStock">0</span></span>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="productStatus">Status</label>
@@ -685,7 +709,7 @@
                     <button type="button" class="btn-cancel" id="cancelFormBtn">
                         Cancel
                     </button>
-                    <button type="submit" class="btn-save">
+                    <button type="submit" class="btn-save" id="saveProductBtn">
                         <i class="fas fa-save"></i> Save Product
                     </button>
                 </div>
@@ -706,4 +730,47 @@
     });
 </script>
 <script src="{% static 'js/admin_products.js' %}"></script>
+
+<!-- 🔥 Additional Inventory Check Script -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Stock Quantity input change event
+    const stockInput = document.getElementById('productStockQuantity');
+    const warningDiv = document.getElementById('inventoryWarning');
+    const availableSpan = document.getElementById('availableInventory');
+    const requiredSpan = document.getElementById('requiredStock');
+    
+    if (stockInput) {
+        stockInput.addEventListener('input', function() {
+            const required = parseInt(this.value) || 0;
+            // Get available inventory from server (you can add an API call here)
+            // For now, we'll just show a general warning
+            if (required > 0) {
+                // You can fetch actual inventory here
+                fetch('/api/inventory/status/')
+                    .then(response => response.json())
+                    .then(data => {
+                        const available = data.total_inventory || 0;
+                        availableSpan.textContent = available;
+                        requiredSpan.textContent = required;
+                        
+                        if (available < required) {
+                            warningDiv.classList.add('show');
+                        } else {
+                            warningDiv.classList.remove('show');
+                        }
+                    })
+                    .catch(() => {
+                        // If API fails, show generic warning
+                        warningDiv.classList.add('show');
+                        availableSpan.textContent = 'Unknown';
+                        requiredSpan.textContent = required;
+                    });
+            } else {
+                warningDiv.classList.remove('show');
+            }
+        });
+    }
+});
+</script>
 {% endblock %}

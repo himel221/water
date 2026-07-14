@@ -7,6 +7,15 @@ urlpatterns = [
     path('shop/', views.shop, name='shop'),
     path('science/', views.science, name='science'),
     path('explore/', views.explore, name='explore'),
+
+    #Registration login 
+     path('register/', views.register, name='register'),
+    path('login/', views.user_login, name='login'), 
+    path('logout/', views.user_logout, name='logout'),  
+    path('profile/', views.profile, name='profile'),
+    path('dashboard/', views.customer_dashboard, name='customer_dashboard'),
+    path('update-health/', views.update_health_info, name='update_health_info'),
+    path('change-password/', views.change_password, name='change_password'),
     
     # API Views
     path('api/products/', views.product_list, name='product_list'),
@@ -14,6 +23,7 @@ urlpatterns = [
     path('api/delivery-charges/', views.district_delivery_charges, name='delivery_charges'),
     path('api/delivery-charge/<str:district>/', views.get_delivery_charge, name='get_delivery_charge'),
     path('api/create-order/', views.create_order, name='create_order'),
+    path('api/check-auth/', views.check_auth, name='check_auth'),
     path('api/orders/', views.order_list, name='order_list'),
     path('api/invoice/<str:order_id>/', views.download_invoice, name='download_invoice'),
     path('cart/', views.cart, name='cart'),
@@ -52,11 +62,20 @@ urlpatterns = [
 
     # Add these URLs to water_app/urls.py
 
-    path('admin-inventory/', views.admin_inventory, name='admin_inventory'),
-    path('api/inventory/<int:product_id>/add-stock/', views.add_stock, name='add_stock'),
+path('admin-inventory/', views.admin_inventory, name='admin_inventory'),
+    
+    # 🔥 Inventory API URLs - উভয় সংস্করণ যোগ করুন
+    path('api/inventory/add-stock/', views.add_stock_api, name='add_stock_api'),
+    path('api/inventory/<int:product_id>/add-stock/', views.add_stock_api, name='add_stock_api_with_id'),
+    
+    path('api/inventory/add-product-by-name/', views.add_product_by_name_api, name='add_product_by_name_api'),
+    path('api/inventory/add-from-admin-products/', views.add_product_from_admin_products, name='add_product_from_admin_products'),
     path('api/inventory/export/excel/', views.export_inventory_excel, name='export_inventory_excel'),
     path('api/inventory/export/pdf/', views.export_inventory_pdf, name='export_inventory_pdf'),
-
+    
+    # Edit & Delete
+    path('api/inventory/<int:product_id>/delete/', views.delete_inventory_product, name='delete_inventory_product'),
+    path('api/inventory/<int:product_id>/edit/', views.edit_inventory_product, name='edit_inventory_product'),
                     # Customer URLs
     #path('customer/add/', views.customer_form, name='customer_form'),
     #path('customer/success/', views.customer_success, name='customer_success'),

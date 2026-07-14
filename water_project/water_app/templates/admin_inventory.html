@@ -91,16 +91,26 @@
         color: #007bff;
     }
     
-    .inventory-value {
-        font-weight: 700;
-        color: #6f42c1;
-        font-size: 14px;
+    /* ===== Action Buttons ===== */
+    .action-buttons {
+        display: flex;
+        gap: 4px;
+        flex-wrap: wrap;
     }
-    
-    .stock-value {
-        font-weight: 700;
-        color: #007bff;
-        font-size: 14px;
+    .action-buttons button {
+        width: 32px;
+        height: 32px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+    }
+    .action-buttons button:hover {
+        transform: scale(1.1);
     }
     
     .action-buttons .btn-view {
@@ -111,14 +121,7 @@
         background: #3498db;
         color: white;
     }
-    .action-buttons .btn-edit {
-        background: #fff3cd;
-        color: #f39c12;
-    }
-    .action-buttons .btn-edit:hover {
-        background: #f39c12;
-        color: white;
-    }
+    
     .action-buttons .btn-add-stock {
         background: #d4edda;
         color: #28a745;
@@ -127,13 +130,51 @@
         background: #28a745;
         color: white;
     }
-    .action-buttons .btn-delete {
+    
+    .action-buttons .btn-edit-inventory {
+        background: #fff3cd;
+        color: #f39c12;
+    }
+    .action-buttons .btn-edit-inventory:hover {
+        background: #f39c12;
+        color: white;
+    }
+    
+    .action-buttons .btn-delete-inventory {
         background: #f8d7da;
         color: #dc3545;
     }
-    .action-buttons .btn-delete:hover {
+    .action-buttons .btn-delete-inventory:hover {
         background: #dc3545;
         color: white;
+    }
+    
+    /* ===== Add Inventory Button Styles ===== */
+    .btn-add-inventory {
+        padding: 10px 22px;
+        background: linear-gradient(135deg, #6f42c1, #007bff);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-weight: 600;
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        box-shadow: 0 4px 15px rgba(111, 66, 193, 0.3);
+        text-decoration: none;
+    }
+    .btn-add-inventory:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(111, 66, 193, 0.4);
+        background: linear-gradient(135deg, #5a32a3, #0069d9);
+        color: white;
+        text-decoration: none;
+    }
+    .btn-add-inventory i {
+        font-size: 16px;
     }
     
     /* ===== Modal Styles ===== */
@@ -245,6 +286,195 @@
         box-shadow: 0 4px 15px rgba(0,123,255,0.3);
     }
     
+    /* ===== Add Inventory Modal ===== */
+    .add-inventory-form .form-group {
+        margin-bottom: 18px;
+    }
+    .add-inventory-form label {
+        display: block;
+        font-weight: 600;
+        color: #2c3e50;
+        font-size: 14px;
+        margin-bottom: 6px;
+    }
+    .add-inventory-form label .required {
+        color: #dc3545;
+    }
+    .add-inventory-form .form-control {
+        width: 100%;
+        padding: 10px 14px;
+        border: 2px solid #e8ecf1;
+        border-radius: 8px;
+        font-size: 14px;
+        transition: all 0.3s ease;
+        background: #fafafa;
+    }
+    .add-inventory-form .form-control:focus {
+        border-color: #6f42c1;
+        outline: none;
+        background: white;
+        box-shadow: 0 0 0 4px rgba(111, 66, 193, 0.1);
+    }
+    .add-inventory-form textarea.form-control {
+        resize: vertical;
+        min-height: 60px;
+    }
+    .add-inventory-form .form-actions {
+        display: flex;
+        gap: 12px;
+        justify-content: flex-end;
+        padding-top: 16px;
+        border-top: 2px solid #e8ecf1;
+        margin-top: 8px;
+    }
+    .btn-cancel-modal {
+        padding: 10px 24px;
+        background: #f0f2f5;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        color: #6c757d;
+        transition: all 0.3s ease;
+    }
+    .btn-cancel-modal:hover {
+        background: #e0e4e8;
+    }
+    .btn-submit-modal {
+        padding: 10px 32px;
+        background: linear-gradient(135deg, #6f42c1, #007bff);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .btn-submit-modal:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(111, 66, 193, 0.4);
+    }
+    .btn-submit-modal:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    /* ===== Modal Overlay ===== */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        backdrop-filter: blur(4px);
+    }
+    .modal-overlay.show {
+        display: flex;
+    }
+    
+    .modal-content {
+        background: white;
+        border-radius: 16px;
+        max-width: 500px;
+        width: 95%;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        animation: slideDown 0.3s ease;
+    }
+    
+    @keyframes slideDown {
+        from { transform: translateY(-30px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+    
+    .modal-header {
+        padding: 20px 24px;
+        border-bottom: 2px solid #e8ecf1;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: #f8f9fa;
+        border-radius: 16px 16px 0 0;
+    }
+    .modal-header h3 {
+        margin: 0;
+        font-size: 20px;
+        color: #2c3e50;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .modal-header h3 i {
+        color: #6f42c1;
+    }
+    .modal-close {
+        background: none;
+        border: none;
+        font-size: 24px;
+        cursor: pointer;
+        color: #7f8c8d;
+        transition: all 0.3s ease;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .modal-close:hover {
+        background: #f0f2f5;
+        color: #2c3e50;
+    }
+    
+    .modal-body {
+        padding: 24px;
+    }
+    
+    /* ===== Toast Notification ===== */
+    .toast-notification {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        border-radius: 8px;
+        color: white;
+        z-index: 10000;
+        min-width: 280px;
+        max-width: 450px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        animation: slideUp 0.3s ease;
+        font-family: system-ui, -apple-system, sans-serif;
+    }
+    .toast-notification.success { background: #28a745; }
+    .toast-notification.error { background: #dc3545; }
+    .toast-notification.info { background: #007bff; }
+    .toast-notification.warning { background: #ffc107; color: #333; }
+    .toast-notification button {
+        background: none;
+        border: none;
+        color: inherit;
+        cursor: pointer;
+        font-size: 18px;
+    }
+    
+    @keyframes slideUp {
+        from { transform: translateY(20px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+    
     /* ===== Responsive ===== */
     @media (max-width: 768px) {
         .export-buttons {
@@ -263,6 +493,18 @@
         .product-image-thumb {
             width: 40px;
             height: 40px;
+        }
+        .form-actions {
+            flex-direction: column;
+        }
+        .form-actions button {
+            width: 100%;
+            justify-content: center;
+        }
+        .action-buttons button {
+            width: 28px;
+            height: 28px;
+            font-size: 11px;
         }
     }
 </style>
@@ -284,7 +526,7 @@
                 </button>
                 <div class="brand">
                     <i class="fas fa-droplet"></i>
-                    <span>Superwater- Inventory</span>
+                    <span>Superwater - Inventory</span>
                 </div>
             </div>
             <div class="navbar-right">
@@ -348,6 +590,10 @@
                 </select>
             </div>
             <div class="export-buttons">
+                <!-- Add Inventory Button -->
+                <button class="btn-add-inventory" id="openAddInventoryBtn">
+                    <i class="fas fa-plus-circle"></i> Add Inventory
+                </button>
                 <span style="font-weight: 600; color: #2c3e50; font-size: 14px; margin-right: 4px;">
                     <i class="fas fa-file-export"></i> Export:
                 </span>
@@ -363,7 +609,7 @@
             </div>
         </div>
 
-        <!-- Table -->
+        <!-- ===== TABLE ===== -->
         <div class="table-container">
             <table class="inventory-table">
                 <thead>
@@ -372,9 +618,8 @@
                         <th style="width: 70px;">Image</th>
                         <th>Product</th>
                         <th>Price</th>
-                        <th>Stock</th>
-                        <th>Inventory</th>
-                        <th>Inventory Value</th>
+                        <th>Inventory Stock</th>
+                        <th>Stock Quantity</th>
                         <th>Status</th>
                         <th>Created</th>
                         <th style="width: 180px;">Actions</th>
@@ -385,16 +630,28 @@
                     <tr>
                         <td><input type="checkbox" class="product-checkbox" data-product-id="{{ product.id }}" /></td>
                         <td>
-                            {% if product.image %}
-                            <img src="{{ product.image.url }}" alt="{{ product.name }}" class="product-image-thumb" />
+                            {% if product.image_url %}
+                            <img src="{{ product.image_url }}" alt="{{ product.name }}" class="product-image-thumb" />
                             {% else %}
                             <div class="product-image-thumb" style="background: #f0f0f0; display: flex; align-items: center; justify-content: center; color: #ccc;">
                                 <i class="fas fa-image fa-2x"></i>
                             </div>
                             {% endif %}
                         </td>
+                        <!-- 🔥 Product কলাম - Active/Inactive ব্যাজ সহ -->
                         <td>
-                            <span class="product-name-cell">{{ product.name }}</span>
+                            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+                                <span class="product-name-cell">{{ product.name }}</span>
+                                {% if not product.is_active %}
+                                <span style="background: #dc3545; color: white; font-size: 9px; padding: 2px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap;">
+                                    <i class="fas fa-eye-slash"></i> Hidden
+                                </span>
+                                {% else %}
+                                <span style="background: #28a745; color: white; font-size: 9px; padding: 2px 8px; border-radius: 4px; display: inline-flex; align-items: center; gap: 3px; white-space: nowrap;">
+                                    <i class="fas fa-eye"></i> Active
+                                </span>
+                                {% endif %}
+                            </div>
                         </td>
                         <td>
                             <span class="price-current">৳{{ product.price|floatformat:2 }}</span>
@@ -402,29 +659,36 @@
                             <span style="display:block; font-size:10px; color:#dc3545;">Sale: ৳{{ product.discount_price|floatformat:2 }}</span>
                             {% endif %}
                         </td>
+                        <!-- Inventory Stock (Inventory Model থেকে) -->
                         <td>
-                            {% if product.stock_quantity > 20 %}
-                            <span class="stock-badge in-stock"><i class="fas fa-check-circle"></i> {{ product.stock_quantity }}</span>
-                            {% elif product.stock_quantity > 5 %}
-                            <span class="stock-badge low-stock"><i class="fas fa-exclamation-circle"></i> {{ product.stock_quantity }}</span>
-                            {% elif product.stock_quantity > 0 %}
-                            <span class="stock-badge critical-stock"><i class="fas fa-exclamation-triangle"></i> {{ product.stock_quantity }}</span>
+                            {% if product.inventory_total > 20 %}
+                            <span class="stock-badge in-stock">
+                                <i class="fas fa-check-circle"></i> {{ product.inventory_total }}
+                            </span>
+                            {% elif product.inventory_total > 5 %}
+                            <span class="stock-badge low-stock">
+                                <i class="fas fa-exclamation-circle"></i> {{ product.inventory_total }}
+                            </span>
+                            {% elif product.inventory_total > 0 %}
+                            <span class="stock-badge critical-stock">
+                                <i class="fas fa-exclamation-triangle"></i> {{ product.inventory_total }}
+                            </span>
                             {% else %}
-                            <span class="stock-badge out-of-stock"><i class="fas fa-times-circle"></i> {{ product.stock_quantity }}</span>
+                            <span class="stock-badge out-of-stock">
+                                <i class="fas fa-times-circle"></i> {{ product.inventory_total }}
+                            </span>
                             {% endif %}
                         </td>
+                        <!-- Stock Quantity (Product Model থেকে - admin_products থেকে যোগ করা) -->
                         <td>
                             <span class="inventory-badge">
-                                <i class="fas fa-warehouse"></i> {{ product.inventory_total|default:0 }}
+                                <i class="fas fa-warehouse"></i> {{ product.stock_quantity|default:0 }}
                             </span>
                         </td>
                         <td>
-                            <span class="inventory-value">৳{{ product.inventory_value|floatformat:2 }}</span>
-                        </td>
-                        <td>
-                            {% if product.stock_quantity > 20 %}
+                            {% if product.inventory_total > 20 %}
                             <span class="status-badge active"><i class="fas fa-circle"></i> In Stock</span>
-                            {% elif product.stock_quantity > 0 %}
+                            {% elif product.inventory_total > 0 %}
                             <span class="status-badge low-stock"><i class="fas fa-circle"></i> Low Stock</span>
                             {% else %}
                             <span class="status-badge out-of-stock"><i class="fas fa-circle"></i> Out of Stock</span>
@@ -442,10 +706,10 @@
                                 <button class="btn-add-stock" data-product-id="{{ product.id }}" title="Add Stock">
                                     <i class="fas fa-plus-circle"></i>
                                 </button>
-                                <button class="btn-edit" data-product-id="{{ product.id }}" title="Edit Product">
+                                <button class="btn-edit-inventory" data-product-id="{{ product.id }}" title="Edit Inventory">
                                     <i class="fas fa-edit"></i>
                                 </button>
-                                <button class="btn-delete" data-product-id="{{ product.id }}" title="Delete">
+                                <button class="btn-delete-inventory" data-product-id="{{ product.id }}" title="Delete Inventory">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -453,7 +717,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="10" class="no-data">
+                        <td colspan="9" class="no-data">
                             <i class="fas fa-box-open"></i>
                             <h3>No Products Found</h3>
                             <p>Start adding products to your inventory!</p>
@@ -538,6 +802,44 @@
     </div>
 </div>
 
+<!-- ===== Add Inventory Modal ===== -->
+<div class="modal-overlay" id="addInventoryModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3><i class="fas fa-plus-circle"></i> Add Inventory</h3>
+            <button class="modal-close" id="closeInventoryModal"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="modal-body">
+            <form id="addInventoryForm" class="add-inventory-form">
+                {% csrf_token %}
+                
+                <div class="form-group">
+                    <label>Product Name <span class="required">*</span></label>
+                    <input type="text" class="form-control" id="productNameInput" placeholder="Enter product name" required />
+                    <small style="color: #999; font-size: 12px;">Enter the exact product name</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>Quantity to Add <span class="required">*</span></label>
+                    <input type="number" class="form-control" id="inventoryQuantity" placeholder="Enter quantity" min="1" required />
+                </div>
+                
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea class="form-control" id="inventoryNotes" placeholder="Add notes (optional)" rows="2"></textarea>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn-cancel-modal" id="cancelInventoryBtn">Cancel</button>
+                    <button type="submit" class="btn-submit-modal">
+                        <i class="fas fa-plus"></i> Add to Inventory
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -547,6 +849,7 @@
     
     document.addEventListener('DOMContentLoaded', function() {
         initializeInventory(productData);
+        setupAddInventoryModal();
     });
 </script>
 <script src="{% static 'js/admin_inventory.js' %}"></script>

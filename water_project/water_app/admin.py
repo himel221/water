@@ -2,7 +2,16 @@ from django.contrib import admin
 from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 from django.http import HttpResponse
-from .models import Product, DistrictDeliveryCharge, Order, OrderItem
+from .models import (
+    Product, 
+    Inventory,  # ✅ যোগ করুন
+    DistrictDeliveryCharge, 
+    Order, 
+    OrderItem,
+    Customer,   # ✅ যোগ করুন
+    UserProfile,  # ✅ যোগ করুন
+    UserVerification  # ✅ যোগ করুন
+)
 import csv
 import io
 from datetime import datetime
@@ -21,68 +30,232 @@ except ImportError:
     print("⚠️ ReportLab not installed. Please install: pip install reportlab")
 
 
+# ============================================
+# PRODUCT ADMIN
+# ============================================
+
+# admin.py
+from django.contrib import admin
+from django.contrib import messages
+from .models import Product, Inventory
+# admin.py
+from django.contrib import admin
+from django.contrib import messages
+from django.db.models import Q
+from .models import Product, Inventory
+
 @admin.register(Product)
 class ProductAdmin(admin.ModelAdmin):
     list_display = [
-        'id',
+        'id', 
         'name', 
-        'category',
-        'price',
-        'stock_quantity', 
-        'discount_price',
-        'discount_percentage',
-        'is_on_sale', 
-        'special_offer_display',
-        'is_eligible_for_offer',
-        'is_active'
+        'price', 
+        'category', 
+        'get_current_stock',
+        'is_active', 
+        'created_at'
     ]
     list_filter = ['category', 'is_active', 'is_on_sale']
-    search_fields = ['name', 'description', 'special_offer']
-    list_editable = ['price', 'stock_quantity', 'discount_price', 'is_on_sale', 'is_active']
+    search_fields = ['name', 'description']
+    list_editable = ['price', 'is_active']
     readonly_fields = ['created_at', 'updated_at']
+    
+    def get_current_stock(self, obj):
+        """Display current stock from inventory"""
+        try:
+            return obj.get_inventory_total()
+        except:
+            return 0
+    get_current_stock.short_description = 'Stock Quantity'
     
     fieldsets = (
         ('Basic Information', {
-            'fields': ('name', 'category', 'description', 'benefits')
+            'fields': ('name', 'description', 'category', 'price', 'image')
         }),
-        ('Pricing & Stock', {
-            'fields': ('price', 'stock_quantity', 'discount_price', 'discount_percentage', 'is_on_sale'),
+        ('Sales & Discounts', {
+            'fields': ('is_on_sale', 'discount_price', 'discount_percentage', 'special_offer')
         }),
-        ('Special Offer', {
-            'fields': ('special_offer',),
+        ('Additional Info', {
+            'fields': ('benefits', 'rating', 'reviews', 'is_active')
         }),
-        ('Ratings & Media', {
-            'fields': ('rating', 'reviews', 'image'),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
             'classes': ('collapse',)
-        }),
-        ('Status', {
-            'fields': ('is_active', 'created_at', 'updated_at')
         }),
     )
     
-    def special_offer_display(self, obj):
-        if obj.special_offer:
-            return mark_safe(
-                f'<span style="background: #fff3cd; color: #856404; padding: 2px 10px; border-radius: 12px; font-size: 12px;">🎉 {obj.special_offer}</span>'
-            )
-        return '-'
-    special_offer_display.short_description = 'Special Offer'
+    def delete_model(self, request, obj):
+        """
+        🔥 admin_products থেকে প্রোডাক্ট ডিলিট করলে inventory তে ডিলিট হবে না
+        শুধু প্রোডাক্টকে inactive করে দেওয়া হবে
+        """
+        try:
+            # চেক করুন প্রোডাক্টের কোনো inventory movement আছে কিনা
+            has_inventory = Inventory.objects.filter(product=obj).exists()
+            
+            if has_inventory:
+                # 🔥 প্রোডাক্ট ডিলিট না করে শুধু inactive করুন
+                obj.is_active = False
+                obj.save()
+                
+                messages.warning(
+                    request, 
+                    f'⚠️ Product "{obj.name}" has inventory records. Made inactive instead of deleting.'
+                )
+                
+                # Inventory records রাখুন (product_id সংরক্ষিত থাকবে কারণ on_delete=SET_NULL)
+                # কিন্তু product ফিল্ড NULL হয়ে যাবে
+                
+                # 🔥 আলাদাভাবে Inventory records আপডেট করুন
+                Inventory.objects.filter(product=obj).update(product=None)
+                
+                messages.info(
+                    request, 
+                    f'✅ Inventory records preserved for "{obj.name}" (Product ID: {obj.id})'
+                )
+            else:
+                # কোনো inventory record না থাকলে ডিলিট করুন
+                obj.delete()
+                messages.success(
+                    request, 
+                    f'✅ Product "{obj.name}" deleted successfully.'
+                )
+                
+        except Exception as e:
+            messages.error(request, f'❌ Error deleting product: {str(e)}')
+            raise e
     
-    def is_eligible_for_offer(self, obj):
-        if obj.special_offer and obj.is_on_sale:
-            return mark_safe(
-                '<span style="background: #28a745; color: white; padding: 2px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">✅ Eligible</span>'
+    def delete_queryset(self, request, queryset):
+        """
+        🔥 Bulk delete - একাধিক প্রোডাক্ট ডিলিট করলে
+        """
+        deleted_count = 0
+        inactive_count = 0
+        
+        for obj in queryset:
+            try:
+                has_inventory = Inventory.objects.filter(product=obj).exists()
+                
+                if has_inventory:
+                    # Inventory থাকলে inactive করুন
+                    obj.is_active = False
+                    obj.save()
+                    Inventory.objects.filter(product=obj).update(product=None)
+                    inactive_count += 1
+                else:
+                    # Inventory না থাকলে ডিলিট করুন
+                    obj.delete()
+                    deleted_count += 1
+            except Exception as e:
+                messages.error(request, f'❌ Error: {str(e)}')
+        
+        if inactive_count > 0:
+            messages.warning(
+                request, 
+                f'⚠️ {inactive_count} products had inventory records. Made inactive instead of deleting.'
             )
-        elif obj.special_offer and not obj.is_on_sale:
-            return mark_safe(
-                '<span style="background: #ffc107; color: #856404; padding: 2px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">⚠️ Offer not active</span>'
+        if deleted_count > 0:
+            messages.success(
+                request, 
+                f'✅ {deleted_count} products deleted successfully.'
             )
-        else:
-            return mark_safe(
-                '<span style="background: #dc3545; color: white; padding: 2px 12px; border-radius: 12px; font-size: 12px;">❌ Not Eligible</span>'
-            )
-    is_eligible_for_offer.short_description = 'Offer Eligibility'
+    
+    def get_actions(self, request):
+        """
+        🔥 Action মেনুতে ডিলিট অপশন কাস্টমাইজ করুন
+        """
+        actions = super().get_actions(request)
+        if 'delete_selected' in actions:
+            # ডিলিট অ্যাকশন রিমুভ করুন
+            del actions['delete_selected']
+        return actions
+    
+    actions = ['make_inactive', 'make_active']  # কাস্টম অ্যাকশন যোগ করুন
+    
+    def make_inactive(self, request, queryset):
+        """Selected products কে inactive করুন"""
+        count = queryset.update(is_active=False)
+        self.message_user(request, f'{count} products made inactive.')
+    make_inactive.short_description = "Mark selected products as inactive"
+    
+    def make_active(self, request, queryset):
+        """Selected products কে active করুন"""
+        count = queryset.update(is_active=True)
+        self.message_user(request, f'{count} products made active.')
+    make_active.short_description = "Mark selected products as active"
 
+# ============================================
+# INVENTORY ADMIN
+# ============================================
+
+@admin.register(Inventory)
+class InventoryAdmin(admin.ModelAdmin):
+    list_display = [
+        'id', 
+        'product', 
+        'quantity', 
+        'previous_stock', 
+        'new_stock', 
+        'movement_type', 
+        'user', 
+        'created_at'
+    ]
+    list_filter = ['movement_type', 'created_at']
+    search_fields = ['product__name', 'notes', 'reference']
+    readonly_fields = ['previous_stock', 'new_stock', 'created_at', 'updated_at']
+    
+    fieldsets = (
+        ('Product Information', {
+            'fields': ('product', 'quantity', 'movement_type')
+        }),
+        ('Stock Information', {
+            'fields': ('previous_stock', 'new_stock')
+        }),
+        ('Additional Info', {
+            'fields': ('reference', 'notes', 'user')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+# ============================================
+# CUSTOMER ADMIN
+# ============================================
+
+@admin.register(Customer)
+class CustomerAdmin(admin.ModelAdmin):
+    list_display = ['id', 'name', 'email', 'phone', 'is_active', 'created_at']
+    search_fields = ['name', 'email', 'phone']
+    list_filter = ['is_active', 'created_at']
+
+
+# ============================================
+# USER PROFILE ADMIN
+# ============================================
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ['id', 'user', 'gender', 'created_at']
+    search_fields = ['user__email', 'user__first_name', 'user__last_name']
+
+
+# ============================================
+# USER VERIFICATION ADMIN
+# ============================================
+
+@admin.register(UserVerification)
+class UserVerificationAdmin(admin.ModelAdmin):
+    list_display = ['id', 'user', 'verification_type', 'is_used', 'expires_at', 'created_at']
+    list_filter = ['verification_type', 'is_used']
+    search_fields = ['user__email']
+
+
+# ============================================
+# DISTRICT DELIVERY CHARGE ADMIN
+# ============================================
 
 @admin.register(DistrictDeliveryCharge)
 class DistrictDeliveryChargeAdmin(admin.ModelAdmin):
@@ -92,6 +265,10 @@ class DistrictDeliveryChargeAdmin(admin.ModelAdmin):
     list_editable = ['charge', 'delivery_time', 'is_active']
     readonly_fields = ['created_at', 'updated_at']
 
+
+# ============================================
+# ORDER ITEM INLINE
+# ============================================
 
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
@@ -213,6 +390,10 @@ class OrderItemInline(admin.TabularInline):
         return False
 
 
+# ============================================
+# ORDER ADMIN
+# ============================================
+
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
     inlines = [OrderItemInline]
@@ -220,9 +401,9 @@ class OrderAdmin(admin.ModelAdmin):
     list_display = [
         'order_id', 
         'customer_name', 
-        'customer_phone',  # ✅ Phone Number যোগ করা হয়েছে
+        'customer_phone',
         'customer_district', 
-        'customer_address_short',  # ✅ Address Short
+        'customer_address_short',
         'get_total_items',
         'total_amount_display',
         'total_savings_display',
@@ -270,7 +451,6 @@ class OrderAdmin(admin.ModelAdmin):
     get_total_items.short_description = 'Total Items'
     
     def customer_address_short(self, obj):
-        """Show short version of customer address"""
         if obj.customer_address:
             address = obj.customer_address[:50]
             if len(obj.customer_address) > 50:
@@ -279,19 +459,7 @@ class OrderAdmin(admin.ModelAdmin):
         return '-'
     customer_address_short.short_description = 'Address'
     
-    def get_product_names(self, obj):
-        """Show product names with quantities and discounts"""
-        products = []
-        for item in obj.order_items.all():
-            discount_text = f"({item.discount_percentage}%)" if item.discount_percentage > 0 else ''
-            products.append(f"{item.product_name} x{item.quantity}{discount_text}")
-        return mark_safe(
-            f'<span style="font-size: 12px;">{", ".join(products[:3])}{"..." if len(products) > 3 else ""}</span>'
-        )
-    get_product_names.short_description = 'Products (Qty x Discount)'
-    
     def products_discounts_display(self, obj):
-        """Show all products with discounts in detail view"""
         html = '<div style="background: #f8f9fa; padding: 12px; border-radius: 8px;">'
         for item in obj.order_items.all():
             discount_percent = f"{item.discount_percentage}%" if item.discount_percentage > 0 else '0%'
@@ -313,7 +481,6 @@ class OrderAdmin(admin.ModelAdmin):
     products_discounts_display.short_description = 'Products & Discounts'
     
     def total_discount_display(self, obj):
-        """Calculate total discount for the order"""
         total_discount = 0
         for item in obj.order_items.all():
             if item.original_price and item.original_price > item.product_price:

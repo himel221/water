@@ -900,3 +900,39 @@
         font-size: 11px;
     }
 }
+
+/* ===== 🔥 Add Inventory Button Styles ===== */
+.btn-add-inventory {
+    padding: 10px 22px;
+    background: linear-gradient(135deg, #6f42c1, #007bff);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 15px rgba(111, 66, 193, 0.3);
+    text-decoration: none;
+}
+.btn-add-inventory:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(111, 66, 193, 0.4);
+    background: linear-gradient(135deg, #5a32a3, #0069d9);
+    color: white;
+    text-decoration: none;
+}
+.btn-add-inventory i {
+    font-size: 16px;
+}
+
+/* ===== Responsive ===== */
+@media (max-width: 768px) {
+    .btn-add-inventory {
+        width: 100%;
+        justify-content: center;
+    }
+}

@@ -88,7 +88,7 @@ function saveUserData() {
     updateSummaryInfo();
 }
 
-// ===== Render Order Items (শুধু Discounted Price দেখাবে) =====
+// ===== Render Order Items =====
 function renderOrderItems(cart) {
     var container = document.getElementById('orderItems');
     if (!container) return;
@@ -119,7 +119,6 @@ function renderOrderItems(cart) {
         html += '<div>';
         html += '<div class="item-name">' + item.name + '</div>';
         html += '<div class="item-quantity">' + quantity + 'x</div>';
-        // ✅ Discount Badge দেখাবে (যদি Discount থাকে)
         if (hasDiscount) {
             var discountPercent = Math.round(((originalPrice - currentPrice) / originalPrice) * 100);
             html += '<span class="item-discount-badge">' + discountPercent + '% OFF</span>';
@@ -129,7 +128,6 @@ function renderOrderItems(cart) {
         }
         html += '</div>';
         html += '</div>';
-        // ✅ শুধু Discounted Price দেখাবে (Original Price দেখাবে না)
         html += '<div class="item-price">৳' + itemTotal.toFixed(2) + '</div>';
         html += '</div>';
     }
@@ -149,8 +147,8 @@ function updateItemCount(cart) {
 
 // ===== Update Price Summary =====
 function updatePriceSummary(cart) {
-    var subtotal = 0;        // Original Price * Quantity
-    var discountedTotal = 0; // Discounted Price * Quantity
+    var subtotal = 0;
+    var discountedTotal = 0;
     var totalSavings = 0;
     
     for (var i = 0; i < cart.length; i++) {
@@ -178,7 +176,6 @@ function updatePriceSummary(cart) {
     
     var total = discountedTotal + shipping;
     
-    // ✅ Update UI - Subtotal দেখাবে Original Price, Subtotal2 দেখাবে Discounted Price
     document.getElementById('subtotal').textContent = '৳' + subtotal.toFixed(2);
     document.getElementById('subtotal2').textContent = '৳' + discountedTotal.toFixed(2);
     document.getElementById('shippingCost').textContent = shipping === 0 ? 'Free' : '৳' + shipping.toFixed(2);
@@ -265,8 +262,148 @@ document.querySelectorAll('.payment-option').forEach(function(option) {
     });
 });
 
-// ===== Place Order =====
+// ============================================
+// ✅ লগইন চেক ফাংশন - সঠিকভাবে কাজ করবে
+// ============================================
+
+function checkUserLogin() {
+    console.log('🔍 Checking user login status...');
+    return fetch('/api/check-auth/', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        credentials: 'same-origin'
+    })
+    .then(function(response) {
+        console.log('📡 Auth response status:', response.status);
+        return response.json();
+    })
+    .then(function(data) {
+        console.log('🔐 Auth data:', data);
+        // 🔥 সঠিকভাবে চেক করুন
+        if (data.is_authenticated === true) {
+            console.log('✅ User is logged in');
+            return true;
+        } else {
+            console.log('❌ User is NOT logged in');
+            return false;
+        }
+    })
+    .catch(function(error) {
+        console.error('❌ Error checking login status:', error);
+        return false;
+    });
+}
+
+// ============================================
+// ✅ লগইন মডাল ফাংশন (গ্লোবালি এক্সপোজ)
+// ============================================
+
+window.showLoginRequiredModal = function(redirectUrl) {
+    console.log('🔐 Showing login modal...');
+    var modal = document.getElementById('loginRequiredModal');
+    
+    if (modal) {
+        // মডাল দেখান
+        modal.style.display = 'flex';
+        modal.classList.add('show');
+        
+        // লগইন বাটনের URL সেট করুন
+        var loginBtn = document.getElementById('loginRequiredBtn');
+        if (loginBtn) {
+            if (redirectUrl) {
+                loginBtn.href = redirectUrl;
+            } else {
+                loginBtn.href = '/login/?next=' + encodeURIComponent(window.location.pathname);
+            }
+            console.log('✅ Login button URL:', loginBtn.href);
+        }
+        
+        // রেজিস্টার বাটনের URL সেট করুন
+        var registerBtn = document.getElementById('registerRequiredBtn');
+        if (registerBtn) {
+            registerBtn.href = '/register/?next=' + encodeURIComponent(window.location.pathname);
+        }
+        
+        // বডি স্ক্রোল বন্ধ করুন
+        document.body.style.overflow = 'hidden';
+    } else {
+        console.error('❌ Login modal not found!');
+        // মডাল না থাকলে সরাসরি লগইন পেজে রিডাইরেক্ট
+        window.location.href = redirectUrl || '/login/?next=' + encodeURIComponent(window.location.pathname);
+    }
+};
+
+window.closeLoginRequiredModal = function() {
+    console.log('🔐 Closing login modal...');
+    var modal = document.getElementById('loginRequiredModal');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+        document.body.style.overflow = 'auto';
+    }
+};
+
+// ============================================
+// ✅ লোডিং ফাংশন
+// ============================================
+
+window.showLoading = function() {
+    var overlay = document.getElementById('loadingOverlay');
+    if (overlay) {
+        overlay.style.display = 'flex';
+        overlay.classList.add('show');
+    }
+};
+
+window.hideLoading = function() {
+    var overlay = document.getElementById('loadingOverlay');
+    if (overlay) {
+        overlay.style.display = 'none';
+        overlay.classList.remove('show');
+    }
+};
+
+// ============================================
+// ✅ সাকসেস মডাল
+// ============================================
+
+window.showSuccessModal = function(orderId) {
+    var modal = document.getElementById('successModal');
+    if (modal) {
+        document.getElementById('modalOrderId').textContent = 'Order ID: #' + orderId;
+        modal.style.display = 'flex';
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
+};
+
+window.closeSuccessModal = function() {
+    var modal = document.getElementById('successModal');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+        document.body.style.overflow = 'auto';
+    }
+};
+
+// ============================================
+// ✅ মডাল কন্টিনিউ বাটন
+// ============================================
+
+document.getElementById('modalContinueBtn')?.addEventListener('click', function() {
+    closeSuccessModal();
+    window.location.href = '/';
+});
+
+// ============================================
+// ✅ প্লেস অর্ডার - লগইন চেক সহ
+// ============================================
+
 document.getElementById('placeOrderBtn')?.addEventListener('click', function() {
+    console.log('🟢 Place Order button clicked');
+    
     var cart = JSON.parse(localStorage.getItem('cart')) || [];
     if (cart.length === 0) {
         showNotification('Your cart is empty!', 'error');
@@ -300,11 +437,41 @@ document.getElementById('placeOrderBtn')?.addEventListener('click', function() {
         return;
     }
     
+    // 🔥 চেক করুন ইউজার লগইন আছে কিনা
+    showLoading();
+    checkUserLogin().then(function(isLoggedIn) {
+        hideLoading();
+        console.log('📊 Is logged in:', isLoggedIn);
+        
+        if (!isLoggedIn) {
+            // লগইন না থাকলে মডাল দেখান
+            var redirectUrl = '/login/?next=' + encodeURIComponent(window.location.pathname);
+            showLoginRequiredModal(redirectUrl);
+            return;
+        }
+        
+        // লগইন থাকলে অর্ডার প্রসেস করুন
+        console.log('✅ User is logged in, processing order...');
+        processOrder();
+    });
+});
+
+// ============================================
+// ✅ প্রসেস অর্ডার
+// ============================================
+
+function processOrder() {
+    var cart = JSON.parse(localStorage.getItem('cart')) || [];
+    var name = document.getElementById('customerName').value.trim();
+    var phone = document.getElementById('customerPhone').value.trim();
+    var address = document.getElementById('customerAddress').value.trim();
+    var district = document.getElementById('customerDistrict').value;
+    
     // Get selected payment
     var paymentOption = document.querySelector('.payment-option.active');
     var paymentMethod = paymentOption ? paymentOption.dataset.payment || paymentOption.querySelector('.option-name').textContent : 'Cash on Delivery';
     
-    // ✅ Prepare items with original price and discount info
+    // Prepare items
     var items = cart.map(function(item) {
         var originalPrice = parseFloat(item.original_price) || parseFloat(item.price) || 0;
         var currentPrice = parseFloat(item.price) || 0;
@@ -327,7 +494,7 @@ document.getElementById('placeOrderBtn')?.addEventListener('click', function() {
         };
     });
     
-    // ✅ Calculate totals
+    // Calculate totals
     var subtotal = 0;
     var totalSavings = 0;
     var discountedTotal = 0;
@@ -348,7 +515,7 @@ document.getElementById('placeOrderBtn')?.addEventListener('click', function() {
     
     var total = discountedTotal + shipping;
     
-    // ✅ Order Data তৈরি করুন
+    // Order Data
     var orderData = {
         customer_name: name,
         customer_phone: phone,
@@ -365,6 +532,8 @@ document.getElementById('placeOrderBtn')?.addEventListener('click', function() {
     
     console.log('📦 Order Data:', orderData);
     
+    showLoading();
+    
     // Send order to server
     fetch('/api/create-order/', {
         method: 'POST',
@@ -378,6 +547,9 @@ document.getElementById('placeOrderBtn')?.addEventListener('click', function() {
         return response.json();
     })
     .then(function(data) {
+        hideLoading();
+        console.log('📦 Order Response:', data);
+        
         if (data.status === 'success') {
             showSuccessModal(data.order_id);
             localStorage.removeItem('cart');
@@ -387,25 +559,16 @@ document.getElementById('placeOrderBtn')?.addEventListener('click', function() {
         }
     })
     .catch(function(error) {
-        console.error('Error placing order:', error);
+        hideLoading();
+        console.error('❌ Error placing order:', error);
         showNotification('❌ Something went wrong. Please try again.', 'error');
     });
-});
-
-// ===== Show Success Modal =====
-function showSuccessModal(orderId) {
-    var modal = document.getElementById('successModal');
-    document.getElementById('modalOrderId').textContent = 'Order ID: #' + orderId;
-    modal.style.display = 'flex';
 }
 
-// ===== Modal Continue Button =====
-document.getElementById('modalContinueBtn')?.addEventListener('click', function() {
-    document.getElementById('successModal').style.display = 'none';
-    window.location.href = '/';
-});
+// ============================================
+// ✅ গেট কুকি
+// ============================================
 
-// ===== Get CSRF Token =====
 function getCookie(name) {
     var cookieValue = null;
     if (document.cookie && document.cookie !== '') {
@@ -421,7 +584,10 @@ function getCookie(name) {
     return cookieValue;
 }
 
-// ===== Notification =====
+// ============================================
+// ✅ নোটিফিকেশন
+// ============================================
+
 function showNotification(message, type) {
     var notification = document.createElement('div');
     notification.className = 'notification ' + (type || 'success');
@@ -438,3 +604,12 @@ function showNotification(message, type) {
         }, 400);
     }, 3000);
 }
+
+// ============================================
+// ✅ ইনিশিয়ালাইজ
+// ============================================
+
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🟢 Checkout page loaded');
+    loadCheckoutData();
+});

@@ -1,9 +1,205 @@
 from decimal import Decimal
 from django.db import models
-from django.contrib.auth.models import User
+from django.contrib.auth.models import AbstractUser, BaseUserManager, Group, Permission
+from django.utils import timezone
+from django.core.validators import RegexValidator
+from django.conf import settings
 import re
 
+# ============================================
+# 1. USER MANAGER
+# ============================================
+# models.py - সরলীকৃত UserManager
+
+class UserManager(BaseUserManager):
+    def create_user(self, email, password=None, **extra_fields):
+        if not email:
+            raise ValueError('Email address is required')
+        email = self.normalize_email(email)
+        
+        # 🔥 এটা যোগ করুন
+        if 'username' not in extra_fields:
+            extra_fields['username'] = email
+        
+        user = self.model(email=email, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+    
+    def create_superuser(self, email, password=None, **extra_fields):
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('is_active', True)
+        
+        if 'username' not in extra_fields:
+            extra_fields['username'] = email
+        
+        return self.create_user(email, password, **extra_fields)
+       
+
+# ============================================
+# 2. USER MODEL
+# ============================================
+
+class User(AbstractUser):
+    """Custom User model for Superwater application"""
+    
+    # 🔥 username ফিল্ড - email দিয়ে পূরণ হবে
+    username = models.CharField(
+        max_length=150,
+        unique=True,
+        blank=False,
+        null=False
+    )
+    
+    email = models.EmailField(
+        unique=True,
+        max_length=255,
+        db_index=True
+    )
+    
+    phone = models.CharField(max_length=15, blank=True, null=True)
+    address = models.TextField(blank=True, null=True)
+    district = models.CharField(max_length=100, blank=True, null=True)
+    
+    USER_TYPE_CHOICES = [
+        ('user', 'Regular User'),
+        ('admin', 'Administrator'),
+    ]
+    
+    user_type = models.CharField(
+        max_length=10,
+        choices=USER_TYPE_CHOICES,
+        default='user'
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    is_verified = models.BooleanField(default=False)
+    
+    objects = UserManager()
+    
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['first_name', 'last_name']
+    
+    class Meta:
+        db_table = 'users'
+        ordering = ['-created_at']
+        verbose_name = 'User'
+        verbose_name_plural = 'Users'
+        swappable = 'AUTH_USER_MODEL'
+    
+    def __str__(self):
+        return f"{self.email}"
+    
+    @property
+    def full_name(self):
+        return f"{self.first_name} {self.last_name}".strip()
+    
+    def save(self, *args, **kwargs):
+        # 🔥 username হিসেবে email সেট করুন
+        if not self.username:
+            self.username = self.email
+        self.email = self.email.lower().strip()
+        super().save(*args, **kwargs)
+
+
+# ============================================
+# 3. USER PROFILE MODEL
+# ============================================
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='profile'
+    )
+    profile_image = models.ImageField(upload_to='profile_images/', blank=True, null=True)
+    date_of_birth = models.DateField(blank=True, null=True)
+    
+    GENDER_CHOICES = [
+        ('M', 'Male'),
+        ('F', 'Female'),
+        ('O', 'Other'),
+    ]
+    gender = models.CharField(max_length=1, choices=GENDER_CHOICES, blank=True, null=True)
+    preferred_delivery_time = models.CharField(max_length=50, blank=True)
+    receive_newsletter = models.BooleanField(default=True)
+    receive_promotions = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'user_profiles'
+    
+    def __str__(self):
+        return f"Profile for {self.user.full_name}"
+
+
+# ============================================
+# 4. USER VERIFICATION MODEL
+# ============================================
+
+class UserVerification(models.Model):
+    VERIFICATION_TYPES = [
+        ('email', 'Email Verification'),
+        ('phone', 'Phone Verification'),
+        ('password_reset', 'Password Reset'),
+    ]
+    
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='verifications'
+    )
+    verification_type = models.CharField(max_length=20, choices=VERIFICATION_TYPES)
+    token = models.CharField(max_length=100, unique=True, db_index=True)
+    is_used = models.BooleanField(default=False)
+    expires_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'user_verifications'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['token']),
+            models.Index(fields=['user', 'verification_type']),
+        ]
+    
+    def __str__(self):
+        return f"{self.user.email} - {self.verification_type}"
+    
+    @property
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+    
+    @property
+    def is_valid(self):
+        return not self.is_used and not self.is_expired
+
+
+# ============================================
+# 5. PRODUCT MODEL
+# ============================================
+
+# models.py
+# models.py
+
+from decimal import Decimal
+from django.db import models
+from django.core.validators import RegexValidator
+
+# models.py
+
+from decimal import Decimal
+from django.db import models
+from django.core.validators import RegexValidator
+
 class Product(models.Model):
+
+
+
     CATEGORY_CHOICES = [
         ('Filters', 'Filters'),
         ('Sensors', 'Sensors'),
@@ -22,7 +218,7 @@ class Product(models.Model):
     benefits = models.TextField(blank=True, null=True)
     rating = models.DecimalField(max_digits=3, decimal_places=2, default=0, blank=True, null=True)
     reviews = models.IntegerField(default=0, blank=True, null=True)
-    stock_quantity = models.IntegerField(default=0, help_text="Number of items in stock")
+    stock_quantity = models.IntegerField(default=0)
     image = models.ImageField(upload_to='products/', blank=True, null=True)
     
     discount_price = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True)
@@ -43,37 +239,122 @@ class Product(models.Model):
         return [b.strip() for b in self.benefits.split(',') if b.strip()]
     
     def is_in_stock(self):
-        return self.stock_quantity > 0
+        return self.get_inventory_total() > 0
 
     def get_effective_price(self):
-        """Return the effective user-visible price after applying discounts."""
         if not self.is_on_sale:
             return self.price
-
         if self.discount_price is not None:
             return self.discount_price
-
         discount_percentage = self.discount_percentage or 0
         if discount_percentage > 0:
             return self.price - (self.price * Decimal(discount_percentage) / Decimal('100'))
-
         return self.price
 
     def get_discount_amount(self):
-        """Return the absolute discount amount for the product."""
         if not self.is_on_sale:
             return Decimal('0.00')
         return self.price - self.get_effective_price()
 
     @property
     def is_eligible_for_offer(self):
-        """Check if product is eligible for special offer"""
         return bool(self.special_offer and self.is_on_sale and self.is_active)
     
     def get_stock_value(self):
-        """Calculate total stock value for this product"""
         return self.price * self.stock_quantity
+    
+    # ============================================
+    # 🔥 INVENTORY RELATED METHODS - এগুলো যোগ করুন
+    # ============================================
+    
+    def get_inventory_total(self):
+        """Get total inventory from Inventory model"""
+        try:
+            from django.db import models
+            # Try to get from Inventory model
+            total = self.inventory_movements.aggregate(
+                total=models.Sum('quantity')
+            )['total'] or 0
+            return total
+        except:
+            # If Inventory model doesn't exist, return stock_quantity
+            return self.stock_quantity or 0
+    
+    @property
+    def inventory_total(self):
+        """Property to get total inventory"""
+        return self.get_inventory_total()
+    
+    @property
+    def inventory_value(self):
+        """Total inventory value"""
+        return float(self.price) * self.inventory_total
+    
+    def get_inventory_movements(self):
+        """Get all inventory movements for this product"""
+        try:
+            return self.inventory_movements.all().order_by('-created_at')
+        except:
+            return []
 
+
+
+# models.py
+class Inventory(models.Model):
+    """Inventory management - Admin only"""
+    MOVEMENT_TYPE_CHOICES = [
+        ('add', 'Add Stock'),
+        ('remove', 'Remove Stock'),
+        ('sale', 'Sale'),
+        ('return', 'Return'),
+        ('adjustment', 'Adjustment'),
+    ]
+    
+    product = models.ForeignKey(
+        Product, 
+        on_delete=models.SET_NULL,  # 🔥 SET_NULL ব্যবহার করুন (CASCADE নয়)
+        null=True,  # 🔥 null=True যোগ করুন
+        blank=True,  # 🔥 blank=True যোগ করুন
+        related_name='inventory_movements'
+    )
+    quantity = models.IntegerField(help_text="Positive = Add, Negative = Remove")
+    previous_stock = models.IntegerField(default=0)
+    new_stock = models.IntegerField(default=0)
+    movement_type = models.CharField(max_length=20, choices=MOVEMENT_TYPE_CHOICES, default='add')
+    reference = models.CharField(max_length=100, blank=True, null=True)
+    notes = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='inventory_movements'
+    )
+    
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Inventory Movement'
+        verbose_name_plural = 'Inventory Movements'
+    
+    def __str__(self):
+        if self.product:
+            return f"{self.product.name} - {self.movement_type}: {self.quantity}"
+        return f"Deleted Product - {self.movement_type}: {self.quantity}"
+    
+    def save(self, *args, **kwargs):
+        # Auto calculate previous and new stock
+        if self.product and not self.previous_stock:
+            # Get current stock from inventory
+            current_stock = self.product.get_inventory_total()
+            self.previous_stock = current_stock
+            self.new_stock = current_stock + self.quantity
+        super().save(*args, **kwargs)
+# ============================================
+# 6. DISTRICT DELIVERY CHARGE MODEL
+# ============================================
 
 class DistrictDeliveryCharge(models.Model):
     DISTRICT_CHOICES = [
@@ -158,6 +439,10 @@ class DistrictDeliveryCharge(models.Model):
         return f"{self.district_name} - TK {self.charge}"
 
 
+# ============================================
+# 7. ORDER ITEM MODEL
+# ============================================
+
 class OrderItem(models.Model):
     order = models.ForeignKey('Order', on_delete=models.CASCADE, related_name='order_items')
     product = models.ForeignKey('Product', on_delete=models.SET_NULL, null=True, blank=True)
@@ -172,6 +457,10 @@ class OrderItem(models.Model):
     def __str__(self):
         return f"{self.product_name} x {self.quantity}"
 
+
+# ============================================
+# 8. ORDER MODEL
+# ============================================
 
 class Order(models.Model):
     STATUS_CHOICES = [
@@ -211,7 +500,14 @@ class Order(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='orders'
+    )
     
     class Meta:
         ordering = ['-created_at']
@@ -227,237 +523,28 @@ class Order(models.Model):
             random_digits = str(random.randint(1000, 9999))
             self.order_id = f"ORD-{timestamp}-{random_digits}"
         super().save(*args, **kwargs)
-    
-    def get_total_items(self):
-        return sum(item.quantity for item in self.order_items.all())
-    
-    def calculate_total_discount(self):
-        total_discount = 0
-        for item in self.order_items.all():
-            if item.original_price and item.original_price > item.product_price:
-                total_discount += (float(item.original_price) - float(item.product_price)) * item.quantity
-        return total_discount
-    
-    def parse_offer_requirements(self, offer_text):
-        offer_text = offer_text.lower()
-        requirements = {
-            'min_quantity': 1,
-            'max_quantity': None,
-            'min_amount': None,
-            'offer_type': 'discount',
-            'description': offer_text
-        }
-        
-        buy_match = re.search(r'buy\s*(\d+)\s*get\s*(\d+)\s*free', offer_text)
-        if buy_match:
-            requirements['min_quantity'] = int(buy_match.group(1))
-            requirements['offer_type'] = 'buy_x_get_y_free'
-            requirements['free_items'] = int(buy_match.group(2))
-            return requirements
-        
-        buy_get_match = re.search(r'buy\s*(\d+)\s*get\s*(\d+)\s*(?:free|off)', offer_text)
-        if buy_get_match:
-            requirements['min_quantity'] = int(buy_get_match.group(1))
-            requirements['offer_type'] = 'buy_x_get_y_free'
-            requirements['free_items'] = int(buy_get_match.group(2))
-            return requirements
-        
-        percent_match = re.search(r'(\d+)%\s*off\s*on\s*(\d+)\s*\+', offer_text)
-        if percent_match:
-            requirements['min_quantity'] = int(percent_match.group(2))
-            requirements['discount_percent'] = int(percent_match.group(1))
-            requirements['offer_type'] = 'percent_off'
-            return requirements
-        
-        percent_only = re.search(r'(\d+)%\s*off', offer_text)
-        if percent_only:
-            requirements['min_quantity'] = 1
-            requirements['discount_percent'] = int(percent_only.group(1))
-            requirements['offer_type'] = 'percent_off'
-            return requirements
-        
-        amount_match = re.search(r'\$?(\d+)\s*off\s*on\s*\$?(\d+)\s*\+', offer_text)
-        if amount_match:
-            requirements['min_amount'] = float(amount_match.group(2))
-            requirements['discount_amount'] = float(amount_match.group(1))
-            requirements['offer_type'] = 'amount_off'
-            return requirements
-        
-        if 'free shipping' in offer_text or 'free delivery' in offer_text:
-            requirements['offer_type'] = 'free_shipping'
-            return requirements
-        
-        if 'combo' in offer_text:
-            requirements['offer_type'] = 'combo'
-            combo_match = re.search(r'(\d+)\s*for\s*\$?(\d+)', offer_text)
-            if combo_match:
-                requirements['min_quantity'] = int(combo_match.group(1))
-                requirements['combo_price'] = float(combo_match.group(2))
-            return requirements
-        
-        if 'flat' in offer_text:
-            flat_match = re.search(r'flat\s*(\d+)%\s*off', offer_text)
-            if flat_match:
-                requirements['discount_percent'] = int(flat_match.group(1))
-                requirements['offer_type'] = 'flat_discount'
-            return requirements
-        
-        return requirements
-    
+
     def is_eligible_for_offer(self):
-        for item in self.order_items.all():
-            if item.special_offer:
-                requirements = self.parse_offer_requirements(item.special_offer)
-                
-                if requirements['offer_type'] == 'free_shipping':
-                    return True
-                elif requirements['offer_type'] == 'buy_x_get_y_free':
-                    if item.quantity >= requirements.get('min_quantity', 2):
-                        return True
-                elif requirements['offer_type'] == 'percent_off':
-                    if item.quantity >= requirements.get('min_quantity', 1):
-                        return True
-                elif requirements['offer_type'] == 'amount_off':
-                    total_price = item.product_price * item.quantity
-                    if total_price >= requirements.get('min_amount', 0):
-                        return True
-                elif requirements['offer_type'] == 'combo':
-                    if item.quantity >= requirements.get('min_quantity', 1):
-                        return True
-                else:
-                    if item.quantity > 1:
-                        return True
+        """Check if order is eligible for special offer"""
+
+        if hasattr(self, 'total_amount') and self.total_amount:
+            return self.total_amount > 1000
         return False
     
-    def get_offer_status(self):
-        offers = []
-        for item in self.order_items.all():
-            if item.special_offer:
-                parsed = self.parse_offer_requirements(item.special_offer)
-                is_eligible = False
-                
-                if parsed['offer_type'] == 'free_shipping':
-                    is_eligible = True
-                elif parsed['offer_type'] == 'buy_x_get_y_free':
-                    is_eligible = item.quantity >= parsed.get('min_quantity', 2)
-                elif parsed['offer_type'] == 'percent_off':
-                    is_eligible = item.quantity >= parsed.get('min_quantity', 1)
-                elif parsed['offer_type'] == 'amount_off':
-                    total_price = item.product_price * item.quantity
-                    is_eligible = total_price >= parsed.get('min_amount', 0)
-                elif parsed['offer_type'] == 'combo':
-                    is_eligible = item.quantity >= parsed.get('min_quantity', 1)
-                elif parsed['offer_type'] == 'flat_discount':
-                    is_eligible = True
-                else:
-                    is_eligible = item.quantity > 1
-                
-                offers.append({
-                    'product': item.product_name,
-                    'offer_text': item.special_offer,
-                    'is_eligible': is_eligible,
-                    'quantity': item.quantity,
-                    'requirements': parsed
-                })
-        
-        return offers
+    def get_total_items(self):
+        """Get total number of items in the order"""
+        return self.order_items.count()
     
-    def get_offer_requirements(self):
-        requirements = []
-        for item in self.order_items.all():
-            if item.special_offer:
-                parsed = self.parse_offer_requirements(item.special_offer)
-                offer_type = parsed.get('offer_type', 'general')
-                is_eligible = False
-                
-                if offer_type == 'free_shipping':
-                    is_eligible = True
-                    requirements.append({
-                        'product': item.product_name,
-                        'offer': item.special_offer,
-                        'required': 'Any quantity',
-                        'current': f'{item.quantity} items',
-                        'eligible': True,
-                        'details': '✅ Free shipping applied'
-                    })
-                elif offer_type == 'buy_x_get_y_free':
-                    min_qty = parsed.get('min_quantity', 2)
-                    free_items = parsed.get('free_items', 1)
-                    is_eligible = item.quantity >= min_qty
-                    requirements.append({
-                        'product': item.product_name,
-                        'offer': item.special_offer,
-                        'required': f'{min_qty}+ items (Get {free_items} free)',
-                        'current': f'{item.quantity} items',
-                        'eligible': is_eligible,
-                        'details': f'{"✅" if is_eligible else "❌"} Need {min_qty - item.quantity} more item(s) to qualify' if not is_eligible else '✅ Requirements met!'
-                    })
-                elif offer_type == 'percent_off':
-                    min_qty = parsed.get('min_quantity', 1)
-                    percent = parsed.get('discount_percent', 0)
-                    is_eligible = item.quantity >= min_qty
-                    requirements.append({
-                        'product': item.product_name,
-                        'offer': item.special_offer,
-                        'required': f'{min_qty}+ items ({percent}% off)',
-                        'current': f'{item.quantity} items',
-                        'eligible': is_eligible,
-                        'details': f'{"✅" if is_eligible else "❌"} Need {min_qty - item.quantity} more item(s) to get {percent}% off' if not is_eligible else '✅ Requirements met!'
-                    })
-                elif offer_type == 'amount_off':
-                    min_amount = parsed.get('min_amount', 0)
-                    discount_amount = parsed.get('discount_amount', 0)
-                    total_price = item.product_price * item.quantity
-                    is_eligible = total_price >= min_amount
-                    requirements.append({
-                        'product': item.product_name,
-                        'offer': item.special_offer,
-                        'required': f'${min_amount}+ order (Save ${discount_amount})',
-                        'current': f'${total_price:.2f}',
-                        'eligible': is_eligible,
-                        'details': f'{"✅" if is_eligible else "❌"} Need ${min_amount - total_price:.2f} more to qualify' if not is_eligible else '✅ Requirements met!'
-                    })
-                elif offer_type == 'combo':
-                    min_qty = parsed.get('min_quantity', 1)
-                    combo_price = parsed.get('combo_price', 0)
-                    is_eligible = item.quantity >= min_qty
-                    requirements.append({
-                        'product': item.product_name,
-                        'offer': item.special_offer,
-                        'required': f'{min_qty} items (Combo: ${combo_price})',
-                        'current': f'{item.quantity} items',
-                        'eligible': is_eligible,
-                        'details': f'{"✅" if is_eligible else "❌"} Need {min_qty - item.quantity} more item(s) for combo' if not is_eligible else '✅ Requirements met!'
-                    })
-                else:
-                    is_eligible = item.quantity > 1
-                    requirements.append({
-                        'product': item.product_name,
-                        'offer': item.special_offer,
-                        'required': '2+ items',
-                        'current': f'{item.quantity} items',
-                        'eligible': is_eligible,
-                        'details': f'{"✅" if is_eligible else "❌"} Need {2 - item.quantity} more item(s) to qualify' if not is_eligible else '✅ Requirements met!'
-                    })
-        
-        return requirements
-    
-    @property
-    def special_offers_list(self):
-        offers = []
-        for item in self.order_items.all():
-            if item.special_offer:
-                offers.append(item.special_offer)
-        return list(set(offers))
+    def get_total_quantity(self):
+        """Get total quantity of all items"""
+        return sum(item.quantity for item in self.order_items.all())
 
 
 # ============================================
-# INVENTORY MODEL
+# 9. INVENTORY MODEL
 # ============================================
 
 class Inventory(models.Model):
-    """Inventory model to track stock movements"""
-    
     INVENTORY_TYPE_CHOICES = [
         ('purchase', 'Purchase'),
         ('sale', 'Sale'),
@@ -467,15 +554,22 @@ class Inventory(models.Model):
     ]
     
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='inventory_movements')
-    quantity = models.IntegerField(help_text="Quantity added (positive) or removed (negative)")
-    previous_stock = models.IntegerField(help_text="Stock before this movement", default=0)
-    new_stock = models.IntegerField(help_text="Stock after this movement", default=0)
+    quantity = models.IntegerField()
+    previous_stock = models.IntegerField(default=0)
+    new_stock = models.IntegerField(default=0)
     movement_type = models.CharField(max_length=20, choices=INVENTORY_TYPE_CHOICES, default='adjustment')
-    reference = models.CharField(max_length=100, blank=True, null=True, help_text="Order ID or reference number")
+    reference = models.CharField(max_length=100, blank=True, null=True)
     notes = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='inventory_movements'
+    )
     
     class Meta:
         ordering = ['-created_at']
@@ -484,14 +578,11 @@ class Inventory(models.Model):
     
     def __str__(self):
         return f"{self.product.name} - {self.movement_type}: {self.quantity}"
-    
-    def save(self, *args, **kwargs):
-        # Auto-calculate new_stock if not provided
-        if self.new_stock == 0 and self.previous_stock is not None:
-            self.new_stock = self.previous_stock + self.quantity
-        super().save(*args, **kwargs)
-    
-# water_app/models.py - Add this model
+
+
+# ============================================
+# 10. CUSTOMER MODEL
+# ============================================
 
 class Customer(models.Model):
     DIABETES_CHOICES = [
@@ -507,14 +598,21 @@ class Customer(models.Model):
         ('low', 'Low'),
     ]
     
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='customer_profile'
+    )
+    
     name = models.CharField(max_length=200)
-    email = models.EmailField(unique=True)
+    email = models.EmailField()
     phone = models.CharField(max_length=20, blank=True, null=True)
     address = models.TextField(blank=True, null=True)
     district = models.CharField(max_length=100, blank=True, null=True)
     is_active = models.BooleanField(default=True)
     
-    # Health information
     is_diabetic = models.BooleanField(default=False)
     diabetes_type = models.CharField(max_length=20, choices=DIABETES_CHOICES, default='none')
     has_high_blood_pressure = models.BooleanField(default=False)
@@ -525,6 +623,19 @@ class Customer(models.Model):
     
     class Meta:
         ordering = ['-created_at']
+        verbose_name = 'Customer'
+        verbose_name_plural = 'Customers'
     
     def __str__(self):
         return f"{self.name} - {self.email}"
+    
+    def get_full_name(self):
+        return self.name
+    
+    def get_health_summary(self):
+        summary = []
+        if self.is_diabetic:
+            summary.append(f"Diabetic ({self.get_diabetes_type_display()})")
+        if self.has_high_blood_pressure:
+            summary.append(f"Blood Pressure: {self.get_blood_pressure_status_display()}")
+        return summary if summary else ['No health issues recorded']

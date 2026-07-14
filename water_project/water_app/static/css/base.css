@@ -58,6 +58,7 @@ body {
     top: 0;
     z-index: 100;
     width: 100%;
+    flex-shrink: 0;
 }
 
 .header-left {
@@ -175,6 +176,9 @@ body {
     font-family: 'Inter', Arial, sans-serif;
     transition: background-color var(--transition), transform var(--transition);
     white-space: nowrap;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
 }
 
 .btn-signin i {
@@ -184,6 +188,7 @@ body {
 .btn-signin:hover {
     background-color: var(--primary-blue-hover);
     transform: translateY(-1px);
+    color: white;
 }
 
 .btn-signin:active {
@@ -194,13 +199,51 @@ body {
    MAIN CONTENT
    ============================================ */
 .app-main {
-    flex: 1;
-    /* Top padding uses header height variable to prevent content being hidden under the sticky header */
-   
+    flex: 1 0 auto; /* Grow but don't shrink */
+    padding: 40px 30px;
     max-width: 100%;
     margin: 0 auto;
     width: 100%;
     overflow-x: hidden; /* Horizontal scroll বন্ধ */
+}
+
+/* ============================================
+   FOOTER - Normal flow (not fixed/sticky)
+   ============================================ */
+.app-footer {
+    background-color: var(--header-bg);
+    color: var(--dark-text);
+    padding: 20px 40px;
+    border-top: 2px solid var(--border-color);
+    flex-shrink: 0; /* Prevent footer from shrinking */
+    width: 100%;
+    margin-top: auto; /* Push to bottom if content is short */
+    position: relative; /* Normal document flow */
+}
+
+.footer-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.footer-links {
+    display: flex;
+    gap: 20px;
+}
+
+.footer-links a {
+    color: var(--dark-text);
+    font-size: 20px;
+    transition: color var(--transition);
+}
+
+.footer-links a:hover {
+    color: var(--primary-blue);
 }
 
 /* ============================================
@@ -515,43 +558,6 @@ body {
 }
 
 /* ============================================
-   FOOTER
-   ============================================ */
-.app-footer {
-    background-color: var(--header-bg);
-    color: var(--dark-text);
-    padding: 20px 40px;
-    border-top: 2px solid var(--border-color);
-    margin-top: auto;
-    width: 100%;
-}
-
-.footer-content {
-    max-width: 1200px;
-    margin: 0 auto;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 20px;
-}
-
-.footer-links {
-    display: flex;
-    gap: 20px;
-}
-
-.footer-links a {
-    color: var(--dark-text);
-    font-size: 20px;
-    transition: color var(--transition);
-}
-
-.footer-links a:hover {
-    color: var(--primary-blue);
-}
-
-/* ============================================
    RESPONSIVE
    ============================================ */
 
@@ -563,6 +569,10 @@ body {
     
     .nav-links {
         gap: 16px;
+    }
+    
+    .app-main {
+        padding: 30px 20px;
     }
 }
 
@@ -619,6 +629,10 @@ body {
         flex-direction: column;
         text-align: center;
     }
+    
+    .app-footer {
+        padding: 20px;
+    }
 }
 
 /* ===== Small Mobile ===== */
@@ -662,6 +676,7 @@ body {
         width: 100%;
         text-align: center;
         padding: 10px;
+        justify-content: center;
     }
     
     .home-title {
@@ -675,6 +690,10 @@ body {
     
     .app-main {
         padding: 20px 12px;
+    }
+    
+    .app-footer {
+        padding: 16px;
     }
 }
 

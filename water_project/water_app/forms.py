@@ -104,8 +104,10 @@ class CustomerRegistrationForm(forms.ModelForm):
     
     def clean_email(self):
         email = self.cleaned_data.get('email')
-        if email and Customer.objects.filter(email=email).exists():
-            raise forms.ValidationError('A customer with this email already exists.')
+        if email:
+            # Check if email already exists in Customer (case-insensitive)
+            if Customer.objects.filter(email__iexact=email).exclude(pk=self.instance.pk).exists():
+                raise forms.ValidationError('A customer with this email already exists.')
         return email
     
     def clean(self):

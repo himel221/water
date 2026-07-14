@@ -516,7 +516,10 @@ function openProductForm(productId = null) {
     modal.style.display = 'flex';
 }
 
-// ===== Save Product =====
+// ============================================================
+// 🔥 SAVE PRODUCT - UPDATED (Inventory কমবে, Stock বাড়বে)
+// ============================================================
+
 function saveProduct() {
     console.log('🟢 saveProduct() called');
     
@@ -547,26 +550,40 @@ function saveProduct() {
     }
     
     // Validate required fields
-    if (!productName.value.trim()) {
+    const name = productName.value.trim();
+    if (!name) {
         showToast('Product name is required!', 'error');
+        productName.focus();
         return;
     }
     if (!productPrice.value) {
         showToast('Price is required!', 'error');
+        productPrice.focus();
         return;
     }
-    if (!productStockQuantity.value && productStockQuantity.value !== '0') {
-        showToast('Stock quantity is required!', 'error');
+    const stockQty = parseInt(productStockQuantity.value);
+    if (isNaN(stockQty) || stockQty < 0) {
+        showToast('Please enter a valid stock quantity!', 'error');
+        productStockQuantity.focus();
         return;
     }
     
+    // Check if this is edit or add
+    const isEdit = editId && editId.value;
+    
+    // 🔥 For new products, check if inventory has enough stock
+    if (!isEdit && stockQty > 0) {
+        // We'll check on server side, but we can show a message
+        console.log(`📊 New product with ${stockQty} units will be taken from inventory`);
+    }
+    
     const formData = new FormData();
-    formData.append('name', productName.value.trim());
+    formData.append('name', name);
     formData.append('description', productDescription ? productDescription.value.trim() : '');
     formData.append('price', productPrice.value);
     formData.append('discount_price', productDiscountPrice ? productDiscountPrice.value || '' : '');
     formData.append('discount_percentage', productDiscountPercentage ? productDiscountPercentage.value || '' : '');
-    formData.append('stock_quantity', productStockQuantity.value);
+    formData.append('stock_quantity', stockQty);
     formData.append('special_offer', productSpecialOffer ? productSpecialOffer.value.trim() : '');
     formData.append('is_active', productStatus ? productStatus.value === 'true' : true);
     
@@ -576,11 +593,13 @@ function saveProduct() {
     }
     
     const csrfToken = getCookie('csrftoken');
-    const isEdit = editId && editId.value;
-    const url = isEdit ? `/api/products/${editId.value}/update/` : '/api/products/create/';
-    const method = isEdit ? 'POST' : 'POST';
+    
+    // 🔥 Use the admin-products API that reduces inventory
+    const url = '/api/inventory/add-from-admin-products/';
+    const method = 'POST';
     
     console.log(`📤 Sending ${isEdit ? 'UPDATE' : 'CREATE'} request to:`, url);
+    console.log(`📊 Stock quantity: ${stockQty} (will be taken from inventory)`);
     
     const btn = document.querySelector('.btn-save');
     const originalText = btn ? btn.innerHTML : 'Save';
@@ -589,19 +608,41 @@ function saveProduct() {
         btn.disabled = true;
     }
     
+    // If editing, add product_id to FormData
+    if (isEdit) {
+        formData.append('product_id', editId.value);
+        formData.append('_method', 'PUT');
+    }
+    
     fetch(url, {
         method: method,
         headers: {
-            'X-CSRFToken': csrfToken
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest'
         },
+        credentials: 'same-origin',
         body: formData
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('📥 Response status:', response.status);
+        if (!response.ok) {
+            return response.json().then(data => {
+                throw new Error(data.message || `HTTP ${response.status}`);
+            });
+        }
+        return response.json();
+    })
     .then(data => {
         console.log('📦 Response:', data);
         if (data.status === 'success') {
-            showToast(isEdit ? '✅ Product updated successfully!' : '✅ Product added successfully!', 'success');
-            setTimeout(() => location.reload(), 1000);
+            const msg = isEdit ? '✅ Product updated successfully! Stock: +' + stockQty : '✅ Product added successfully! Stock: +' + stockQty;
+            if (data.removed_from_inventory > 0) {
+                showToast(msg + ', Inventory: -' + data.removed_from_inventory, 'success');
+            } else {
+                showToast(msg, 'success');
+            }
+            closeModal('productFormModal');
+            setTimeout(() => location.reload(), 1500);
         } else {
             showToast(data.message || 'Failed to save product', 'error');
             if (btn) {
@@ -612,7 +653,7 @@ function saveProduct() {
     })
     .catch(error => {
         console.error('❌ Error:', error);
-        showToast('Error saving product. Please try again.', 'error');
+        showToast('❌ Error: ' + (error.message || 'Please try again.'), 'error');
         if (btn) {
             btn.innerHTML = originalText;
             btn.disabled = false;
@@ -966,3 +1007,4 @@ window.goToPage = goToPage;
 window.changePage = changePage;
 
 console.log('✅ Admin Products JavaScript loaded successfully!');
+console.log('🔧 Products will take stock from inventory automatically');

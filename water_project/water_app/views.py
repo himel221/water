@@ -10,8 +10,9 @@ from datetime import datetime, timedelta
 from django.db import models
 from django.contrib import messages
 from .forms import CustomerForm
+from django.contrib.auth import login as auth_login
 
-
+from django.contrib.auth import get_user_model
 import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
@@ -24,6 +25,13 @@ from reportlab.lib.units import inch
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from io import BytesIO
 from datetime import datetime
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from django.contrib.auth.decorators import login_required
+from .models import Product, Inventory
+import json
+User = get_user_model()
 
 # ReportLab Import
 try:
@@ -191,18 +199,52 @@ def get_delivery_charge(request, district):
         }, status=500)
 
 
-from django.db import transaction
+from django.db import models
+from django.core.validators import RegexValidator
+from django.utils import timezone
 
 from django.db import transaction
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from django.contrib.auth import get_user_model
+import json
+
 
 @csrf_exempt
 @require_http_methods(["POST"])
 def create_order(request):
-    """API: Create a new order - Only product stock reduces, NOT inventory"""
+    """API: Create a new order - Requires user to be logged in"""
+    
+    if not request.user.is_authenticated:
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Please sign in to place your order',
+            'redirect_url': '/login/?next=' + request.META.get('HTTP_REFERER', '/'),
+            'requires_login': True
+        }, status=401)
+    
     try:
         data = json.loads(request.body)
         
+        # ✅ ইউজার রিলোড করুন (get_user_model() ব্যবহার করুন)
+        User = get_user_model()
+        user = User.objects.get(id=request.user.id)
+        
+        # ✅ ফ্রন্টএন্ড থেকে ডেটা নিন
+        customer_name = data.get('customer_name', '')
+        customer_phone = data.get('customer_phone', '')
+        customer_address = data.get('customer_address', '')
         district = data.get('customer_district', '')
+        
+        print(f"👤 Order by: {user.email}")
+        print(f"👤 User ID: {user.id}")
+        print(f"👤 Customer Name: {customer_name}")
+        print(f"📱 Phone: {customer_phone}")
+        print(f"📍 Address: {customer_address}")
+        print(f"🏙️ District: {district}")
+        
+        # ডেলিভারি চার্জ
         delivery_charge_obj = DistrictDeliveryCharge.objects.filter(
             district__iexact=district, 
             is_active=True
@@ -216,7 +258,7 @@ def create_order(request):
         total_discount = 0
         
         with transaction.atomic():
-            # Validate stock availability from PRODUCT (not inventory)
+            # Validate stock
             for item in items_data:
                 product_id = item.get('id')
                 quantity = int(item.get('quantity', 1))
@@ -235,7 +277,7 @@ def create_order(request):
                             'message': f'Product not found: {item.get("name", "Unknown")}'
                         }, status=400)
             
-            # Calculate totals and REDUCE product stock ONLY
+            # Calculate and reduce stock
             for item in items_data:
                 product_id = item.get('id')
                 price = float(item.get('price', 0))
@@ -248,7 +290,6 @@ def create_order(request):
                     total_savings += savings
                     total_discount += savings
                 
-                # 👇 ONLY product stock reduces (NOT inventory)
                 if product_id:
                     try:
                         product = Product.objects.get(id=product_id)
@@ -260,12 +301,12 @@ def create_order(request):
             
             total_amount = subtotal - total_savings + delivery_charge
             
-            # Create order
+            # ✅ Order তৈরি করুন - user_id ব্যবহার করুন
             order = Order.objects.create(
-                customer_name=data.get('customer_name', 'Guest'),
-                customer_email=data.get('customer_email', 'guest@email.com'),
-                customer_phone=data.get('customer_phone', ''),
-                customer_address=data.get('customer_address', ''),
+                customer_name=customer_name,
+                customer_email=user.email,
+                customer_phone=customer_phone,
+                customer_address=customer_address,
                 customer_district=district,
                 delivery_charge=delivery_charge,
                 delivery_zone=delivery_zone,
@@ -276,8 +317,11 @@ def create_order(request):
                 payment_method=data.get('payment_method', 'Cash on Delivery'),
                 transaction_id=data.get('transaction_id', ''),
                 status='pending',
-                payment_status='pending'
+                payment_status='pending',
+                user_id=user.id  # ✅ user.id ব্যবহার করুন
             )
+            
+            print(f"✅ Order created: {order.order_id}")
             
             # Create order items
             for item in items_data:
@@ -308,12 +352,21 @@ def create_order(request):
         return JsonResponse({
             'status': 'success',
             'order_id': order.order_id,
-            'message': 'Order created successfully. Product stock has been reduced.',
+            'message': 'Order created successfully.',
             'subtotal': subtotal,
             'total_savings': total_savings,
             'total_discount': total_discount,
-            'total_amount': total_amount
+            'total_amount': total_amount,
+            'user': user.email,
+            'customer_name': customer_name
         })
+        
+    except json.JSONDecodeError as e:
+        print(f"❌ JSON Decode Error: {str(e)}")
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Invalid JSON data'
+        }, status=400)
         
     except Exception as e:
         print(f"❌ Order Creation Error: {str(e)}")
@@ -323,7 +376,8 @@ def create_order(request):
             'status': 'error',
             'message': str(e)
         }, status=400)
-    
+
+
 def order_list(request):
     """API: Get all orders with items"""
     orders = Order.objects.all()
@@ -1318,11 +1372,11 @@ from water_app.models import Order, OrderItem, Product
 # ============================================
 # PRODUCT MANAGEMENT VIEWS
 # ============================================
-
 @staff_member_required
 def admin_products(request):
-    """Admin Products Management Page"""
-    products = Product.objects.all().order_by('-created_at')
+    """Admin Products Management Page - শুধু active products দেখাবে"""
+    # 🔥 শুধু is_active=True প্রোডাক্ট দেখান (Admin যারা manually যোগ করেছে)
+    products = Product.objects.filter(is_active=True).order_by('-created_at')
     
     context = {
         'products': products,
@@ -1341,13 +1395,12 @@ def admin_products(request):
         } for p in products]),
         'total_products': products.count(),
         'active_products': products.filter(is_active=True).count(),
-        'inactive_products': products.filter(is_active=False).count(),
+        'inactive_products': Product.objects.filter(is_active=False).count(),
         'low_stock_products': products.filter(stock_quantity__lte=10, stock_quantity__gt=0).count() if hasattr(Product, 'stock_quantity') else 0,
         'total_orders': Order.objects.count(),
         'total_customers': 0,
     }
     return render(request, 'admin_products.html', context)
-
 # ===== Custom Admin Edit Views =====
 
 @csrf_exempt
@@ -1467,10 +1520,16 @@ def get_product_detail(request, product_id):
         return JsonResponse({'error': str(e)}, status=400)
 
 
+# views.py - create_product ফাংশন (Inventory চেক সহ)
+
+# views.py - create_product ফাংশন
+
+# views.py - create_product ফাংশন (সঠিকভাবে inventory কমাবে)
+
 @csrf_exempt
 @staff_member_required
 def create_product(request):
-    """Create a new product - Inventory stock REDUCES"""
+    """Create a new product - Inventory stock REDUCES, Stock Quantity INCREASES"""
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
     
@@ -1485,7 +1544,7 @@ def create_product(request):
         is_active = request.POST.get('is_active', 'true') == 'true'
         special_offer = request.POST.get('special_offer', '').strip()
         
-        # Validate required fields
+        # Validate
         if not name:
             return JsonResponse({'status': 'error', 'message': 'Product name is required'}, status=400)
         if not price:
@@ -1498,7 +1557,6 @@ def create_product(request):
         except ValueError:
             return JsonResponse({'status': 'error', 'message': 'Invalid price format'}, status=400)
         
-        # Validate stock quantity
         try:
             stock_quantity = int(stock_quantity)
             if stock_quantity < 0:
@@ -1506,7 +1564,7 @@ def create_product(request):
         except ValueError:
             stock_quantity = 0
         
-        # Check if product has discount
+        # Check discount
         is_on_sale = False
         discount_price_value = None
         discount_percentage_value = None
@@ -1527,76 +1585,97 @@ def create_product(request):
             except:
                 pass
         
-        # Create product
+        # ============================================================
+        # 🔥 STEP 1: INVENTORY CHECK
+        # ============================================================
+        if stock_quantity > 0:
+            from water_app.models import Inventory
+            from django.db import models
+            
+            # Get total inventory available
+            inventory_total = Inventory.objects.aggregate(
+                total=models.Sum('quantity')
+            )['total'] or 0
+            
+            print(f"📊 Total inventory available: {inventory_total}")
+            print(f"📊 Requested stock: {stock_quantity}")
+            
+            # Check if sufficient inventory
+            if inventory_total < stock_quantity:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': f'Insufficient inventory. Available: {inventory_total}, Required: {stock_quantity}'
+                }, status=400)
+            
+            print(f"✅ Sufficient inventory available")
+        
+        # ============================================================
+        # 🔥 STEP 2: CREATE PRODUCT
+        # ============================================================
         product = Product(
             name=name,
             description=description,
             price=price,
             discount_price=discount_price_value,
             discount_percentage=discount_percentage_value,
-            stock_quantity=stock_quantity,
+            stock_quantity=stock_quantity,  # ✅ Stock Quantity বাড়বে
             is_active=is_active,
             special_offer=special_offer if special_offer else None,
             is_on_sale=is_on_sale,
         )
         
-        # Handle image upload
+        # Handle image
         if 'image' in request.FILES:
             image_file = request.FILES['image']
             if image_file.content_type not in ['image/jpeg', 'image/png', 'image/gif', 'image/webp']:
-                return JsonResponse({'status': 'error', 'message': 'Invalid image format. Only JPEG, PNG, GIF, WEBP allowed.'}, status=400)
+                return JsonResponse({'status': 'error', 'message': 'Invalid image format'}, status=400)
             if image_file.size > 2 * 1024 * 1024:
                 return JsonResponse({'status': 'error', 'message': 'Image size must be less than 2MB'}, status=400)
             product.image = image_file
         
         product.save()
         
-        # ✅ Inventory stock REDUCES (if stock_quantity > 0)
+        # ============================================================
+        # 🔥 STEP 3: REDUCE INVENTORY (Inventory Stock কমবে)
+        # ============================================================
         if stock_quantity > 0:
-            try:
-                from water_app.models import Inventory
-                from django.db import models
-
-                # Get current inventory total
-                inventory_total = Inventory.objects.filter(product=product).aggregate(
-                    total=models.Sum('quantity')
-                )['total'] or 0
-
-                # Prevent creating product with more stock than available in inventory
-                if inventory_total < stock_quantity:
-                    product.delete()
-                    return JsonResponse({'status': 'error', 'message': f'Insufficient inventory. Available inventory: {inventory_total}'}, status=400)
-
-                # Create inventory movement - STOCK TAKEN FROM INVENTORY
-                Inventory.objects.create(
-                    product=product,
-                    quantity=-stock_quantity,  # Negative: Stock taken from inventory
-                    previous_stock=inventory_total,
-                    new_stock=inventory_total - stock_quantity,
-                    movement_type='adjustment',
-                    reference=f'Product Created: {product.id}',
-                    notes=f'Stock TAKEN from inventory for product: {product.name}. Quantity: {stock_quantity}',
-                    user=request.user if request.user.is_authenticated else None
-                )
-
-                print(f"✅ Inventory stock REDUCED by {stock_quantity} for product: {product.name}")
-                print(f"   New inventory total: {inventory_total - stock_quantity}")
-
-            except Exception as e:
-                print(f"⚠️ Inventory update skipped: {str(e)}")
+            from water_app.models import Inventory
+            from django.db import models
+            
+            # Get current inventory total
+            inventory_total = Inventory.objects.aggregate(
+                total=models.Sum('quantity')
+            )['total'] or 0
+            
+            # 🔥 IMPORTANT: Inventory কমাবে
+            inventory = Inventory.objects.create(
+                product=product,
+                quantity=-stock_quantity,  # 🔥 Negative: Inventory কমবে
+                previous_stock=inventory_total,
+                new_stock=inventory_total - stock_quantity,
+                movement_type='adjustment',
+                reference=f'Product Created: {product.id}',
+                notes=f'Stock TAKEN from inventory for product: {product.name}. Quantity: {stock_quantity}',
+                user=request.user if request.user.is_authenticated else None
+            )
+            
+            print(f"✅ Inventory REDUCED by {stock_quantity}")
+            print(f"   New inventory total: {inventory_total - stock_quantity}")
+            print(f"   Product stock_quantity: {product.stock_quantity}")
         
         return JsonResponse({
             'status': 'success',
-            'message': f'Product "{name}" created successfully. Stock taken from inventory: {stock_quantity}',
+            'message': f'Product "{name}" created. Stock: +{stock_quantity}, Inventory: -{stock_quantity}',
             'product_id': product.id,
+            'stock_quantity': product.stock_quantity,
+            'inventory_reduced': stock_quantity
         })
         
     except Exception as e:
-        print(f"❌ Error creating product: {str(e)}")
+        print(f"❌ Error: {str(e)}")
         import traceback
         traceback.print_exc()
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
-    
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)    
 
 @csrf_exempt
 @staff_member_required
@@ -2338,529 +2417,626 @@ def export_districts_pdf(request):
     response.write(buffer.getvalue())
     return response
 
+# views.py - Inventory Management Section (Cleaned & Updated)
 
-@staff_member_required
+from django.shortcuts import render, get_object_or_404
+from django.http import JsonResponse, HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from django.contrib.auth.decorators import login_required
+from django.contrib.admin.views.decorators import staff_member_required
+from .models import Product, Inventory
+import json
+import csv
+from datetime import datetime
+from decimal import Decimal
+
+
+# ============================================================
+# 🔥 ADMIN INVENTORY VIEW
+# ============================================================
+# views.py - admin_inventory view আপডেট করুন
+# views.py - admin_inventory আপডেট করুন
+
+@login_required
 def admin_inventory(request):
-    """Admin Inventory Management Page"""
-    from water_app.models import Inventory
+    """Admin inventory management view"""
+    if not request.user.is_staff and not request.user.is_superuser:
+        return render(request, '403.html', {'message': 'Admin access required'}, status=403)
+    
+    # 🔥 সব প্রোডাক্ট দেখান (active + inventory থাকা)
+    # অথবা শুধু যাদের inventory আছে তাদের দেখান
     from django.db import models
+    from .models import Inventory
     
-    products = Product.objects.all().order_by('-created_at')
+    # 🔥 শুধু যাদের inventory আছে তাদের দেখান
+    products_with_inventory = Product.objects.filter(
+        models.Exists(Inventory.objects.filter(product=models.OuterRef('pk')))
+    ).order_by('-created_at')
     
-    products_with_inventory = []
-    for product in products:
-        # Calculate inventory total
-        inventory_total = Inventory.objects.filter(product=product).aggregate(
-            total=models.Sum('quantity')
-        )['total'] or 0
+    # অথবা সব প্রোডাক্ট দেখাতে চাইলে:
+    # products = Product.objects.all().order_by('-created_at')
+    
+    products_data = []
+    for product in products_with_inventory:
+        try:
+            inventory_total = product.get_inventory_total()
+        except:
+            inventory_total = 0
         
-        # Calculate inventory value (price × inventory total)
-        inventory_value = float(product.price) * inventory_total
+        stock_quantity = product.stock_quantity or 0
+        total_available = inventory_total + stock_quantity
         
-        products_with_inventory.append({
+        image_url = None
+        if product.image and hasattr(product.image, 'url'):
+            image_url = product.image.url
+        
+        product_data = {
             'id': product.id,
             'name': product.name,
+            'price': product.price,
+            'category': product.category,
             'description': product.description,
-            'price': float(product.price),
-            'stock_quantity': product.stock_quantity,
-            'inventory_total': inventory_total,
-            'inventory_value': inventory_value,  # 👈 Added
+            'image_url': image_url,
             'is_on_sale': product.is_on_sale,
-            'discount_price': float(product.discount_price) if product.discount_price else None,
-            'image_url': product.image.url if product.image else None,
-            'created_at': product.created_at.isoformat() if product.created_at else None,
+            'discount_price': product.discount_price,
+            'discount_percentage': product.discount_percentage,
+            'special_offer': product.special_offer,
+            'created_at': product.created_at,
+            'stock_quantity': stock_quantity,
+            'inventory_total': inventory_total,
+            'total_available': total_available,
+            'is_active': product.is_active,  # 🔥 active status দেখান
+        }
+        products_data.append(product_data)
+    
+    # Calculate stats
+    total_products = len(products_data)
+    in_stock = sum(1 for p in products_data if p['inventory_total'] > 20)
+    low_stock = sum(1 for p in products_data if 0 < p['inventory_total'] <= 20)
+    out_of_stock = sum(1 for p in products_data if p['inventory_total'] == 0)
+    
+    # JSON conversion
+    products_json = []
+    for product in products_data:
+        products_json.append({
+            'id': product['id'],
+            'name': product['name'],
+            'price': float(product['price']),
+            'stock_quantity': product['stock_quantity'],
+            'inventory_total': product['inventory_total'],
+            'total_available': product['total_available'],
+            'category': product['category'],
+            'description': product['description'] or '',
+            'image_url': product['image_url'],
+            'is_on_sale': product['is_on_sale'],
+            'discount_price': float(product['discount_price']) if product['discount_price'] else None,
+            'discount_percentage': product['discount_percentage'],
+            'special_offer': product['special_offer'] or '',
+            'created_at': product['created_at'].strftime('%Y-%m-%d %H:%M:%S') if product['created_at'] else None,
+            'is_active': product['is_active'],
         })
     
     context = {
-        'products': products,
-        'products_json': json.dumps(products_with_inventory),
-        'total_products': products.count(),
-        'in_stock_products': products.filter(stock_quantity__gt=20).count(),
-        'low_stock_products': products.filter(stock_quantity__gte=1, stock_quantity__lte=20).count(),
-        'out_of_stock_products': products.filter(stock_quantity=0).count(),
-        'total_orders': Order.objects.count(),
-        'total_districts': DistrictDeliveryCharge.objects.count(),
-        'total_customers': 0,
+        'products': products_data,
+        'products_json': json.dumps(products_json),
+        'total_products': total_products,
+        'in_stock_products': in_stock,
+        'low_stock_products': low_stock,
+        'out_of_stock_products': out_of_stock,
     }
+    
     return render(request, 'admin_inventory.html', context)
+# ============================================================
+# 🔥 DELETE PRODUCT FROM INVENTORY (শুধু ইনভেন্টরি থেকে ডিলিট)
+# ============================================================
 
 @csrf_exempt
-@staff_member_required
-def add_stock(request, product_id):
-    """Add stock to inventory - ONLY Inventory stock INCREASES"""
-    print("=" * 50)
-    print("🔵 add_stock called")
-    print(f"   Product ID: {product_id}")
-    print(f"   Request method: {request.method}")
-    
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Method not allowed'}, status=405)
-    
+@require_http_methods(["DELETE"])
+@login_required
+def delete_inventory_product(request, product_id):
+    """
+    🔥 admin_inventory থেকে প্রোডাক্ট ডিলিট করলে:
+    - শুধু ইনভেন্টরি রেকর্ড ডিলিট হবে
+    - প্রোডাক্ট ডিলিট হবে না (admin_products এ থাকবে)
+    """
     try:
-        # Get product
+        if not request.user.is_staff and not request.user.is_superuser:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Admin access required'
+            }, status=403)
+        
         product = get_object_or_404(Product, id=product_id)
-        print(f"   Product: {product.name}")
         
-        # Get quantity from request body
-        try:
-            data = json.loads(request.body)
-            quantity = data.get('quantity', 0)
-            print(f"   Quantity from JSON: {quantity}")
-        except json.JSONDecodeError:
-            # If JSON parsing fails, try form data
-            quantity = request.POST.get('quantity', 0)
-            print(f"   Quantity from POST: {quantity}")
+        # 🔥 শুধু ইনভেন্টরি রেকর্ড ডিলিট করুন
+        Inventory.objects.filter(product=product).delete()
         
-        try:
-            quantity = int(quantity)
-        except:
-            quantity = 0
+        # অথবা আপনি চাইলে stock_quantity রিসেট করতে পারেন
+        product.stock_quantity = 0
+        product.save()
         
-        print(f"   Final quantity: {quantity}")
+        return JsonResponse({
+            'status': 'success',
+            'message': f'Inventory records deleted for {product.name}'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=400)
+
+
+# ============================================================
+# 🔥 EDIT INVENTORY PRODUCT (শুধু ইনভেন্টরি এডিট)
+# ============================================================
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@login_required
+def edit_inventory_product(request, product_id):
+    """
+    🔥 admin_inventory থেকে প্রোডাক্ট এডিট করলে:
+    - শুধু ইনভেন্টরি আপডেট হবে
+    - প্রোডাক্টের price ইত্যাদি admin_products এ আপডেট করতে হবে
+    """
+    try:
+        if not request.user.is_staff and not request.user.is_superuser:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Admin access required'
+            }, status=403)
+        
+        product = get_object_or_404(Product, id=product_id)
+        data = json.loads(request.body)
+        
+        # 🔥 শুধু ইনভেন্টরি সম্পর্কিত ফিল্ড আপডেট করুন
+        # (price, name ইত্যাদি admin_products এ আপডেট হবে)
+        
+        # আপনি চাইলে ইনভেন্টরি এডিট করতে পারেন
+        inventory_quantity = data.get('inventory_quantity')
+        if inventory_quantity is not None:
+            current_inventory = product.get_inventory_total()
+            diff = inventory_quantity - current_inventory
+            
+            if diff != 0:
+                Inventory.objects.create(
+                    product=product,
+                    quantity=diff,
+                    previous_stock=current_inventory,
+                    new_stock=inventory_quantity,
+                    movement_type='adjustment',
+                    notes=f'Inventory adjusted from {current_inventory} to {inventory_quantity}',
+                    user=request.user
+                )
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': f'Inventory updated for {product.name}'
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=400)
+# ============================================================
+# 🔥 1. ADMIN_INVENTORY থেকে যোগ করলে - ইনভেন্টরি বাড়বে
+# ============================================================
+
+# views.py - add_product_by_name_api
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@login_required
+def add_product_by_name_api(request):
+    """
+    🔥 admin_inventory থেকে প্রোডাক্ট যোগ করলে:
+    - is_active = False হবে
+    - admin_products এ দেখাবে না
+    """
+    try:
+        if not request.user.is_staff and not request.user.is_superuser:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Admin access required'
+            }, status=403)
+        
+        data = json.loads(request.body)
+        product_name = data.get('name', '').strip()
+        quantity = data.get('quantity', 0)
+        price = data.get('price', 0)
+        description = data.get('description', '')
+        
+        if not product_name:
+            return JsonResponse({'status': 'error', 'message': 'Product name is required'}, status=400)
         
         if quantity <= 0:
             return JsonResponse({'status': 'error', 'message': 'Quantity must be greater than 0'}, status=400)
         
-        # ============================================
-        # ✅ Update Inventory
-        # ============================================
-        from water_app.models import Inventory
-        from django.db import models
+        # চেক করুন প্রোডাক্ট ইতিমধ্যে আছে কিনা
+        existing_product = Product.objects.filter(name__iexact=product_name).first()
         
-        # Get current inventory total
-        inventory_total = Inventory.objects.filter(product=product).aggregate(
-            total=models.Sum('quantity')
-        )['total'] or 0
+        if existing_product:
+            # প্রোডাক্ট থাকলে শুধু ইনভেন্টরি বাড়বে
+            current_inventory = existing_product.get_inventory_total()
+            new_inventory = current_inventory + quantity
+            
+            Inventory.objects.create(
+                product=existing_product,
+                quantity=quantity,
+                previous_stock=current_inventory,
+                new_stock=new_inventory,
+                movement_type='add',
+                notes=f'Added {quantity} units from admin_inventory - Added by {request.user.email}',
+                user=request.user
+            )
+            
+            return JsonResponse({
+                'status': 'success',
+                'message': f'Added {quantity} units to inventory: {product_name}',
+                'product_id': existing_product.id,
+                'product_name': existing_product.name,
+                'inventory_total': new_inventory,
+                'stock_quantity': existing_product.stock_quantity,
+                'total_available': new_inventory + existing_product.stock_quantity,
+                'action': 'inventory_added'
+            })
+        else:
+            # 🔥 নতুন প্রোডাক্ট তৈরি করুন - is_active=False সহ
+            product = Product(
+                name=product_name,
+                price=Decimal(str(price)),
+                stock_quantity=0,
+                description=description,
+                category='Filters',
+                # 🔥 is_active False সেট করুন
+                is_active=False
+            )
+            # জোর করে False সেট করুন
+            product.is_active = False
+            product.save()
+            
+            print(f"✅ New product created: {product_name} (is_active={product.is_active})")
+            
+            # Inventory তৈরি করুন
+            Inventory.objects.create(
+                product=product,
+                quantity=quantity,
+                previous_stock=0,
+                new_stock=quantity,
+                movement_type='product_created',
+                notes=f'Product created with {quantity} units from admin_inventory (inactive in admin_products)',
+                user=request.user
+            )
+            
+            return JsonResponse({
+                'status': 'success',
+                'message': f'Product "{product_name}" added to inventory with {quantity} units! (Hidden from admin_products)',
+                'product_id': product.id,
+                'product_name': product.name,
+                'inventory_total': quantity,
+                'stock_quantity': 0,
+                'total_available': quantity,
+                'action': 'product_created_inventory_only',
+                'warning': 'This product is hidden from admin_products (is_active=False)'
+            })
         
-        print(f"   Current inventory total: {inventory_total}")
-        
-        # Create inventory movement
-        inventory_movement = Inventory.objects.create(
-            product=product,
-            quantity=quantity,
-            previous_stock=inventory_total,
-            new_stock=inventory_total + quantity,
-            movement_type='restock',
-            reference=f'Manual Restock: {product.id}',
-            notes=f'Added {quantity} units to inventory. Product stock: {product.stock_quantity}',
-            user=request.user if request.user.is_authenticated else None
-        )
-        
-        print(f"   Inventory movement created: ID {inventory_movement.id}")
-        
-        # Verify
-        new_inventory_total = Inventory.objects.filter(product=product).aggregate(
-            total=models.Sum('quantity')
-        )['total'] or 0
-        
-        print(f"✅ Success!")
-        print(f"   Old inventory: {inventory_total}")
-        print(f"   New inventory: {new_inventory_total}")
-        print(f"   Product stock: {product.stock_quantity} (unchanged)")
-        print("=" * 50)
-        
-        return JsonResponse({
-            'status': 'success',
-            'message': f'Added {quantity} units to inventory',
-            'product_stock': product.stock_quantity,
-            'inventory_added': quantity,
-            'inventory_total': new_inventory_total,
-            'movement_id': inventory_movement.id
-        })
-        
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Invalid JSON data'}, status=400)
     except Exception as e:
         print(f"❌ Error: {str(e)}")
         import traceback
         traceback.print_exc()
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+# ============================================================
+# 🔥 2. ADMIN_PRODUCTS থেকে যোগ করলে - স্টক বাড়বে, ইনভেন্টরি কমবে
+# ============================================================
+
+
+
+# ============================================================
+# 🔥 3. ADD STOCK API (admin_inventory থেকে স্টক যোগ)
+# ============================================================
+# views.py
+# views.py
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from django.contrib.auth.decorators import login_required
+from .models import Product, Inventory
+import json
+# views.py
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from django.contrib.auth.decorators import login_required
+from .models import Product, Inventory
+import json
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@login_required
+def add_stock_api(request, product_id=None):
+    """
+    API: Add stock to existing product - Admin only
+    Supports both:
+    - /api/inventory/add-stock/ (product_id in body)
+    - /api/inventory/<int:product_id>/add-stock/ (product_id in URL)
+    """
+    try:
         print("=" * 50)
+        print("🔵 ADD STOCK API CALLED")
+        print(f"Product ID from URL: {product_id}")
+        
+        # Check admin access
+        if not request.user.is_staff and not request.user.is_superuser:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Admin access required'
+            }, status=403)
+        
+        # Get data
+        data = json.loads(request.body)
+        print(f"📥 Request data: {data}")
+        
+        # Get product_id from URL or body
+        if product_id:
+            pid = product_id
+            quantity = data.get('quantity', 0)
+        else:
+            pid = data.get('product_id')
+            quantity = data.get('quantity', 0)
+        
+        print(f"📦 Product ID: {pid}")
+        print(f"📦 Quantity: {quantity}")
+        
+        # Validation
+        if not pid:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Product ID required'
+            }, status=400)
+        
+        if quantity <= 0:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Quantity must be greater than 0'
+            }, status=400)
+        
+        # Get product
+        try:
+            product = Product.objects.get(id=pid)
+            print(f"✅ Product found: {product.name}")
+        except Product.DoesNotExist:
+            print(f"❌ Product not found: {pid}")
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Product not found'
+            }, status=404)
+        
+        # Get current inventory
+        try:
+            current_inventory = product.get_inventory_total()
+        except:
+            current_inventory = product.stock_quantity or 0
+        
+        new_inventory = current_inventory + quantity
+        print(f"📊 Current: {current_inventory}, New: {new_inventory}")
+        
+        # Create inventory entry
+        try:
+            inventory = Inventory.objects.create(
+                product=product,
+                quantity=quantity,
+                previous_stock=current_inventory,
+                new_stock=new_inventory,
+                movement_type='restock',
+                notes=f'Added {quantity} units - Added by {request.user.email}',
+                user=request.user
+            )
+            print(f"✅ Inventory entry created: {inventory.id}")
+        except Exception as e:
+            print(f"⚠️ Inventory entry failed: {e}")
+            # Fallback: update stock_quantity directly
+            product.stock_quantity = new_inventory
+            product.save()
+            print(f"✅ Product stock_quantity updated directly")
+        
         return JsonResponse({
-            'status': 'error', 
-            'message': str(e)
+            'status': 'success',
+            'message': f'Added {quantity} units to {product.name}',
+            'product_id': product.id,
+            'product_name': product.name,
+            'inventory_total': new_inventory,
+            'stock_quantity': product.stock_quantity,
+            'total_available': new_inventory + (product.stock_quantity or 0),
+            'previous_stock': current_inventory,
+            'new_stock': new_inventory
+        })
+        
+    except json.JSONDecodeError as e:
+        print(f"❌ JSON Decode Error: {str(e)}")
+        return JsonResponse({
+            'status': 'error',
+            'message': f'Invalid JSON data: {str(e)}'
         }, status=400)
+    except Exception as e:
+        print(f"❌ Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=500)
     
-@staff_member_required
+
+# ============================================================
+# 🔥 4. EXPORT INVENTORY EXCEL
+# ============================================================
+
+@login_required
 def export_inventory_excel(request):
-    """Export inventory as Excel file with Inventory Value"""
+    """Export inventory data as CSV/Excel"""
     try:
-        import openpyxl
-        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-    except ImportError:
-        return HttpResponse("⚠️ openpyxl not installed. Please install: pip install openpyxl", status=500)
-    
-    try:
-        from water_app.models import Inventory
-        from django.db import models
+        if not request.user.is_staff and not request.user.is_superuser:
+            return JsonResponse({'status': 'error', 'message': 'Admin access required'}, status=403)
         
-        products = Product.objects.all().order_by('-created_at')
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="inventory_report_{datetime.now().strftime("%Y%m%d")}.csv"'
         
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = "Inventory Report"
+        writer = csv.writer(response)
+        writer.writerow([
+            'Product ID', 'Product Name', 'Category', 'Price', 
+            'Stock Quantity', 'Inventory Total', 'Total Available',
+            'Inventory Value', 'Total Stock Value', 'Status', 'Created At'
+        ])
         
-        # Styles
-        header_font = Font(name='Arial', size=10, bold=True, color='FFFFFF')
-        header_fill = PatternFill(start_color='1a5276', end_color='1a5276', fill_type='solid')
-        header_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-        border = Border(
-            left=Side(style='thin', color='000000'),
-            right=Side(style='thin', color='000000'),
-            top=Side(style='thin', color='000000'),
-            bottom=Side(style='thin', color='000000')
-        )
+        products = Product.objects.filter(is_active=True).order_by('-created_at')
         
-        # Title
-        ws.merge_cells('A1:I1')
-        title_cell = ws['A1']
-        title_cell.value = "📦 Aquanimity SuperWater - Inventory Report"
-        title_cell.font = Font(name='Arial', size=18, bold=True, color='1a5276')
-        title_cell.alignment = Alignment(horizontal='center', vertical='center')
-        
-        ws.merge_cells('A2:I2')
-        subtitle_cell = ws['A2']
-        subtitle_cell.value = f"Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')} | Total Products: {products.count()}"
-        subtitle_cell.font = Font(name='Arial', size=10, color='666666')
-        subtitle_cell.alignment = Alignment(horizontal='center', vertical='center')
-        
-        # Headers - Added Inventory Value column
-        headers = ['Sl No', 'Product Name', 'Price (৳)', 'Stock Quantity', 'Inventory Stock', 'Inventory Value (৳)', 'Stock Value (৳)', 'Status', 'Created At']
-        
-        for col, header in enumerate(headers, 1):
-            cell = ws.cell(row=4, column=col, value=header)
-            cell.font = header_font
-            cell.fill = header_fill
-            cell.alignment = header_alignment
-            cell.border = border
-        
-        # Data
-        row_num = 5
-        total_stock_value = 0
-        total_stock_quantity = 0
-        total_inventory = 0
-        total_inventory_value = 0
-        
-        for idx, product in enumerate(products, 1):
-            # Calculate inventory total for this product
-            inventory_total = Inventory.objects.filter(product=product).aggregate(
-                total=models.Sum('quantity')
-            )['total'] or 0
+        for product in products:
+            try:
+                inventory_total = product.get_inventory_total()
+            except:
+                inventory_total = 0
             
-            # Calculate inventory value
+            stock_quantity = product.stock_quantity or 0
+            total_available = inventory_total + stock_quantity
             inventory_value = float(product.price) * inventory_total
+            total_stock_value = float(product.price) * total_available
             
-            stock_value = float(product.price) * product.stock_quantity
-            total_stock_value += stock_value
-            total_stock_quantity += product.stock_quantity
-            total_inventory += inventory_total
-            total_inventory_value += inventory_value
+            status = 'In Stock' if total_available > 20 else 'Low Stock' if total_available > 0 else 'Out of Stock'
             
-            # Determine status
-            if product.stock_quantity > 20:
-                status = 'In Stock'
-            elif product.stock_quantity > 0:
-                status = 'Low Stock'
-            else:
-                status = 'Out of Stock'
-            
-            row_data = [
-                idx,
+            writer.writerow([
+                product.id,
                 product.name,
+                product.category,
                 float(product.price),
-                product.stock_quantity,
+                stock_quantity,
                 inventory_total,
-                inventory_value,  # 👈 Inventory Value column
-                stock_value,
+                total_available,
+                inventory_value,
+                total_stock_value,
                 status,
-                product.created_at.strftime('%Y-%m-%d %H:%M') if product.created_at else '-'
-            ]
-            
-            for col, value in enumerate(row_data, 1):
-                cell = ws.cell(row=row_num, column=col, value=value)
-                cell.alignment = Alignment(horizontal='left' if col not in [1, 4, 5] else 'center', vertical='center', wrap_text=True)
-                cell.border = border
-                
-                # Color coding for stock status
-                if col == 8:  # Status column
-                    if value == 'In Stock':
-                        cell.fill = PatternFill(start_color='d4edda', end_color='d4edda', fill_type='solid')
-                        cell.font = Font(color='155724')
-                    elif value == 'Low Stock':
-                        cell.fill = PatternFill(start_color='fff3cd', end_color='fff3cd', fill_type='solid')
-                        cell.font = Font(color='856404')
-                    else:
-                        cell.fill = PatternFill(start_color='f8d7da', end_color='f8d7da', fill_type='solid')
-                        cell.font = Font(color='721c24')
-                
-                # Highlight Inventory Value column
-                if col == 6:
-                    cell.font = Font(color='6f42c1', bold=True)
-            
-            row_num += 1
+                product.created_at.strftime('%Y-%m-%d %H:%M')
+            ])
         
-        # Column widths
-        widths = {'A': 6, 'B': 35, 'C': 14, 'D': 12, 'E': 14, 'F': 16, 'G': 16, 'H': 12, 'I': 18}
-        for col, width in widths.items():
-            ws.column_dimensions[col].width = width
-        
-        ws.freeze_panes = 'A5'
-        
-        # Summary Statistics
-        summary_row = row_num + 2
-        ws.merge_cells(f'A{summary_row}:D{summary_row}')
-        summary_title = ws.cell(row=summary_row, column=1)
-        summary_title.value = "📊 Summary Statistics"
-        summary_title.font = Font(name='Arial', size=12, bold=True)
-        
-        in_stock_count = products.filter(stock_quantity__gt=20).count()
-        low_stock_count = products.filter(stock_quantity__gte=1, stock_quantity__lte=20).count()
-        out_of_stock_count = products.filter(stock_quantity=0).count()
-        
-        summary_data = [
-            ['Total Products', str(products.count())],
-            ['Total Stock Quantity', str(total_stock_quantity)],
-            ['Total Inventory Stock', str(total_inventory)],
-            ['Total Inventory Value', f"৳ {total_inventory_value:.2f}"],  # 👈 Added
-            ['Total Stock Value', f"৳ {total_stock_value:.2f}"],
-            ['In Stock', str(in_stock_count)],
-            ['Low Stock', str(low_stock_count)],
-            ['Out of Stock', str(out_of_stock_count)],
-        ]
-        
-        for idx, (label, value) in enumerate(summary_data):
-            row = summary_row + idx + 1
-            ws.cell(row=row, column=1, value=label).font = Font(bold=True)
-            ws.cell(row=row, column=2, value=value)
-        
-        # Footer
-        footer_row = summary_row + len(summary_data) + 2
-        ws.merge_cells(f'A{footer_row}:I{footer_row}')
-        footer_cell = ws.cell(row=footer_row, column=1)
-        footer_cell.value = "© 2026 Aquanimity Super Water. All rights reserved."
-        footer_cell.font = Font(name='Arial', size=9, color='999999')
-        footer_cell.alignment = Alignment(horizontal='center')
-        
-        response = HttpResponse(
-            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-        )
-        filename = f'inventory_report_{datetime.now().strftime("%Y%m%d_%H%M")}.xlsx'
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        wb.save(response)
         return response
         
     except Exception as e:
-        print(f"❌ Excel Export Error: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return HttpResponse(f"Error generating Excel: {str(e)}", status=500)
+        print(f"❌ Export error: {str(e)}")
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 
-@staff_member_required
+
+# ============================================================
+# 🔥 5. EXPORT INVENTORY PDF
+# ============================================================
+
+@login_required
 def export_inventory_pdf(request):
-    """Export inventory as PDF file with Inventory Value"""
+    """Export inventory data as PDF"""
     try:
-        from reportlab.lib import colors
-        from reportlab.lib.pagesizes import landscape, A4
-        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-        from reportlab.lib.units import inch
-        from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
-    except ImportError:
-        return HttpResponse("⚠️ ReportLab not installed. Please install: pip install reportlab", status=500)
-    
-    try:
-        from water_app.models import Inventory
-        from django.db import models
+        if not request.user.is_staff and not request.user.is_superuser:
+            return JsonResponse({'status': 'error', 'message': 'Admin access required'}, status=403)
         
-        products = Product.objects.all().order_by('-created_at')
+        try:
+            from reportlab.lib import colors
+            from reportlab.lib.pagesizes import landscape, A4
+            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib.units import inch
+            from reportlab.lib.enums import TA_CENTER, TA_LEFT
+        except ImportError:
+            return JsonResponse({
+                'status': 'error', 
+                'message': 'ReportLab not installed. Please install: pip install reportlab'
+            }, status=400)
         
+        import io
         response = HttpResponse(content_type='application/pdf')
-        filename = f'inventory_report_{datetime.now().strftime("%Y%m%d_%H%M")}.pdf'
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        response['Content-Disposition'] = f'attachment; filename="inventory_report_{datetime.now().strftime("%Y%m%d")}.pdf"'
         
         buffer = io.BytesIO()
-        doc = SimpleDocTemplate(buffer, pagesize=landscape(A4), rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+        doc = SimpleDocTemplate(buffer, pagesize=landscape(A4))
         
         styles = getSampleStyleSheet()
-        
-        # Custom styles
         title_style = ParagraphStyle(
-            'TitleStyle', 
-            parent=styles['Heading1'], 
-            fontSize=18, 
-            textColor=colors.HexColor('#1a5276'), 
-            alignment=TA_CENTER, 
-            spaceAfter=12, 
-            fontName='Helvetica-Bold'
-        )
-        
-        subtitle_style = ParagraphStyle(
-            'SubtitleStyle', 
-            parent=styles['Normal'], 
-            fontSize=10, 
-            textColor=colors.HexColor('#666666'), 
-            alignment=TA_CENTER, 
-            spaceAfter=16
+            'TitleStyle',
+            parent=styles['Heading1'],
+            fontSize=20,
+            textColor=colors.HexColor('#007bff'),
+            alignment=TA_CENTER,
+            spaceAfter=20
         )
         
         story = []
-        
-        # Title
-        story.append(Paragraph("📦 Aquanimity SuperWater - Inventory Report", title_style))
-        story.append(Paragraph(f"Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", subtitle_style))
-        story.append(Paragraph(f"Total Products: {products.count()}", subtitle_style))
+        story.append(Paragraph("📦 Inventory Report - Superwater", title_style))
+        story.append(Paragraph(f"Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", 
+                              ParagraphStyle('SubTitle', parent=styles['Normal'], fontSize=12, textColor=colors.HexColor('#666'), alignment=TA_CENTER)))
         story.append(Spacer(1, 0.2*inch))
         
-        # Summary
-        total_stock_value = sum(float(p.price) * p.stock_quantity for p in products)
-        total_stock = sum(p.stock_quantity for p in products)
+        table_data = [['ID', 'Product', 'Category', 'Price', 'Stock', 'Inventory', 'Total', 'Value', 'Status']]
         
-        # Calculate total inventory and inventory value
-        total_inventory = 0
-        total_inventory_value = 0
-        for product in products:
-            inventory_total = Inventory.objects.filter(product=product).aggregate(
-                total=models.Sum('quantity')
-            )['total'] or 0
-            total_inventory += inventory_total
-            total_inventory_value += float(product.price) * inventory_total
+        products = Product.objects.filter(is_active=True).order_by('-created_at')
         
-        in_stock = products.filter(stock_quantity__gt=20).count()
-        low_stock = products.filter(stock_quantity__gte=1, stock_quantity__lte=20).count()
-        out_of_stock = products.filter(stock_quantity=0).count()
-        
-        summary_data = [
-            ['📊 INVENTORY SUMMARY', ''],
-            ['Total Products', str(products.count())],
-            ['Total Stock Quantity', str(total_stock)],
-            ['Total Inventory Stock', str(total_inventory)],
-            ['Total Inventory Value', f"৳ {total_inventory_value:.2f}"],  # 👈 Added
-            ['Total Stock Value', f"৳ {total_stock_value:.2f}"],
-            ['In Stock (20+)', str(in_stock)],
-            ['Low Stock (1-20)', str(low_stock)],
-            ['Out of Stock', str(out_of_stock)],
-        ]
-        
-        summary_table = Table(summary_data, colWidths=[2.5*inch, 2.5*inch])
-        summary_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#28a745')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 10),
-            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-            ('GRID', (0, 1), (-1, -1), 1, colors.HexColor('#ddd')),
-            ('PADDING', (0, 0), (-1, -1), 6),
-            ('FONTSIZE', (0, 1), (-1, -1), 9),
-            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f8f9fa')),
-            ('BACKGROUND', (0, 2), (-1, 2), colors.HexColor('#eaf2f8')),
-            ('BACKGROUND', (0, 4), (-1, 4), colors.HexColor('#eaf2f8')),
-        ]))
-        
-        story.append(summary_table)
-        story.append(Spacer(1, 0.3*inch))
-        
-        # Table - Added "Inventory Value" column
-        table_data = [
-            ['Sl', 'Product Name', 'Price (৳)', 'Stock', 'Inventory', 'Inventory Value (৳)', 'Stock Value (৳)', 'Status']
-        ]
-        
-        for idx, product in enumerate(products[:100], 1):
-            # Calculate inventory total
-            inventory_total = Inventory.objects.filter(product=product).aggregate(
-                total=models.Sum('quantity')
-            )['total'] or 0
+        for product in products[:100]:
+            try:
+                inventory_total = product.get_inventory_total()
+            except:
+                inventory_total = 0
             
-            # Calculate inventory value
+            stock_quantity = product.stock_quantity or 0
+            total_available = inventory_total + stock_quantity
             inventory_value = float(product.price) * inventory_total
             
-            stock_value = float(product.price) * product.stock_quantity
-            
-            if product.stock_quantity > 20:
+            if total_available > 20:
                 status = 'In Stock'
-            elif product.stock_quantity > 0:
+            elif total_available > 0:
                 status = 'Low Stock'
             else:
                 status = 'Out of Stock'
             
             table_data.append([
-                str(idx),
+                str(product.id),
                 product.name[:25] + ('...' if len(product.name) > 25 else ''),
-                f"{float(product.price):.2f}",
-                str(product.stock_quantity),
+                product.category,
+                f"৳{float(product.price):.2f}",
+                str(stock_quantity),
                 str(inventory_total),
-                f"{inventory_value:.2f}",  # 👈 Inventory Value column
-                f"{stock_value:.2f}",
+                str(total_available),
+                f"৳{inventory_value:.2f}",
                 status
             ])
         
-        if products.count() > 100:
-            table_data.append(['...', f'... and {products.count() - 100} more products', '', '', '', '', '', ''])
-        
-        # Updated column widths with new column
-        table = Table(table_data, colWidths=[0.4*inch, 1.8*inch, 0.7*inch, 0.5*inch, 0.6*inch, 0.9*inch, 0.9*inch, 0.7*inch])
-        
-        # Apply table styles
-        table_style = TableStyle([
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a5276')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        table = Table(table_data, colWidths=[0.4*inch, 1.5*inch, 0.8*inch, 0.7*inch, 0.5*inch, 0.5*inch, 0.5*inch, 0.8*inch, 0.7*inch])
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#007bff')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 7),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 5),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
             ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f8f9fa')),
             ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#ddd')),
-            ('FONTSIZE', (0, 1), (-1, -1), 6),
-            ('ALIGN', (0, 0), (0, -1), 'CENTER'),
-            ('ALIGN', (3, 1), (3, -1), 'CENTER'),
-            ('ALIGN', (4, 1), (4, -1), 'CENTER'),
-            ('ALIGN', (2, 1), (2, -1), 'RIGHT'),
-            ('ALIGN', (5, 1), (5, -1), 'RIGHT'),
-            ('ALIGN', (6, 1), (6, -1), 'RIGHT'),
-            ('PADDING', (0, 0), (-1, -1), 2),
-        ])
+            ('FONTSIZE', (0, 1), (-1, -1), 7),
+            ('ALIGN', (0, 1), (0, -1), 'CENTER'),
+            ('PADDING', (0, 0), (-1, -1), 3),
+        ]))
         
-        # Color coding for status column (column index 7)
-        for row_idx in range(1, len(table_data)):
-            if len(table_data[row_idx]) > 7:
-                status = table_data[row_idx][7]
-                if status == 'In Stock':
-                    table_style.add('BACKGROUND', (7, row_idx), (7, row_idx), colors.HexColor('#d4edda'))
-                    table_style.add('TEXTCOLOR', (7, row_idx), (7, row_idx), colors.HexColor('#155724'))
-                elif status == 'Low Stock':
-                    table_style.add('BACKGROUND', (7, row_idx), (7, row_idx), colors.HexColor('#fff3cd'))
-                    table_style.add('TEXTCOLOR', (7, row_idx), (7, row_idx), colors.HexColor('#856404'))
-                else:
-                    table_style.add('BACKGROUND', (7, row_idx), (7, row_idx), colors.HexColor('#f8d7da'))
-                    table_style.add('TEXTCOLOR', (7, row_idx), (7, row_idx), colors.HexColor('#721c24'))
-        
-        # Highlight Inventory Value column (index 5)
-        for row_idx in range(1, len(table_data)):
-            if len(table_data[row_idx]) > 5:
-                table_style.add('TEXTCOLOR', (5, row_idx), (5, row_idx), colors.HexColor('#6f42c1'))
-                table_style.add('FONTNAME', (5, row_idx), (5, row_idx), 'Helvetica-Bold')
-        
-        table.setStyle(table_style)
         story.append(table)
         story.append(Spacer(1, 0.3*inch))
+        story.append(Paragraph("© 2026 Superwater - All rights reserved", 
+                              ParagraphStyle('Footer', parent=styles['Normal'], fontSize=10, textColor=colors.HexColor('#999'), alignment=TA_CENTER)))
         
-        # Footer
-        footer_style = ParagraphStyle(
-            'FooterStyle', 
-            parent=styles['Normal'], 
-            fontSize=9, 
-            textColor=colors.HexColor('#999999'), 
-            alignment=TA_CENTER
-        )
-        story.append(Paragraph("© 2026 Aquanimity Super Water. All rights reserved.", footer_style))
-        
-        # Build PDF
         doc.build(story)
         buffer.seek(0)
         response.write(buffer.getvalue())
         return response
         
     except Exception as e:
-        print(f"❌ PDF Export Error: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return HttpResponse(f"Error generating PDF: {str(e)}", status=500)
-    
+        print(f"❌ PDF Export error: {str(e)}")
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
 # ============================================
 # CUSTOMER MANAGEMENT VIEWS
 # ============================================
@@ -3406,3 +3582,1338 @@ def export_customers_pdf(request):
             'status': 'error', 
             'message': f'Failed to export customers to PDF: {str(e)}'
         }, status=500)
+
+#------------------------Registration of USER--------------------#
+# views.py - Add these registration views
+
+
+# views.py - সম্পূর্ণ আপডেটেড কোড
+
+from django.shortcuts import render, redirect
+from django.contrib.auth import login as auth_login  # 🔥 এটা গুরুত্বপূর্ণ
+from django.contrib.auth import authenticate
+from django.contrib.auth import logout as auth_logout  # 🔥 logout-এর জন্যও
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError
+from .models import User, UserProfile, Customer
+import re
+import traceback
+
+
+# views.py - আপডেটেড register view
+
+from django.shortcuts import render, redirect
+from django.contrib.auth import login as auth_login
+from django.contrib.auth import authenticate
+from django.contrib.auth import logout as auth_logout
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError
+from django.views.decorators.csrf import csrf_protect  # 🔥 এটা যোগ করুন
+from .models import User, UserProfile, Customer
+import re
+import traceback
+
+
+# views.py - সম্পূর্ণ আপডেটেড
+
+from django.shortcuts import render, redirect
+from django.contrib.auth import login as auth_login
+from django.contrib.auth import authenticate
+from django.contrib.auth import logout as auth_logout
+from django.contrib import messages
+from django.contrib.auth.decorators import login_required
+from django.core.validators import validate_email
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError
+from django.views.decorators.csrf import csrf_protect
+from django.views.decorators.cache import never_cache
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.http import HttpResponse
+from .models import User, UserProfile, Customer
+import re
+
+
+@csrf_protect
+@never_cache
+@ensure_csrf_cookie
+def register(request):
+    """User registration view - Customer auto create"""
+    print("=" * 60)
+    print("🔵 REGISTER VIEW CALLED")
+    print(f"Method: {request.method}")
+    print("=" * 60)
+    
+    # যদি ইউজার ইতিমধ্যে লগইন করা থাকে
+    if request.user.is_authenticated:
+        return redirect('home')
+    
+    if request.method == 'POST':
+        print("\n🟢 POST DATA RECEIVED:")
+        
+        # Get form data
+        first_name = request.POST.get('first_name', '').strip()
+        last_name = request.POST.get('last_name', '').strip()
+        email = request.POST.get('email', '').strip().lower()
+        phone = request.POST.get('phone', '').strip()
+        address = request.POST.get('address', '').strip()
+        district = request.POST.get('district', '').strip()
+        password = request.POST.get('password', '')
+        confirm_password = request.POST.get('confirm_password', '')
+        role = request.POST.get('role', 'user')
+        terms = request.POST.get('terms', False)
+        
+        print(f"📧 Email: {email}")
+        print(f"👤 First Name: {first_name}")
+        print(f"👤 Last Name: {last_name}")
+        print(f"📱 Phone: {phone}")
+        print(f"📍 Address: {address}")
+        print(f"🏙️ District: {district}")
+        print(f"✅ Terms: {terms}")
+        
+        # Validation
+        errors = []
+        
+        # Check if terms accepted
+        if not terms:
+            errors.append('You must agree to the Terms of Service')
+            print("❌ Terms not accepted")
+        
+        # Validate first name
+        if len(first_name) < 2:
+            errors.append('First name must be at least 2 characters long')
+            print("❌ First name too short")
+        
+        # Validate last name
+        if len(last_name) < 2:
+            errors.append('Last name must be at least 2 characters long')
+            print("❌ Last name too short")
+        
+        # Validate email
+        try:
+            validate_email(email)
+            print("✅ Email validation passed")
+        except ValidationError:
+            errors.append('Please enter a valid email address')
+            print("❌ Email validation failed")
+        
+        # Check if email exists
+        print(f"\n🔍 Checking if email exists: {email}")
+        
+        if User.objects.filter(email__iexact=email).exists():
+            existing_user = User.objects.filter(email__iexact=email).first()
+            print(f"❌ Email already exists: {email} (User ID: {existing_user.id})")
+            errors.append('An account with this email already exists. Please login or use a different email.')
+        else:
+            print("✅ Email is available for registration")
+        
+        # Validate phone
+        phone_pattern = r'^[0-9+\-\s()]{10,15}$'
+        if not re.match(phone_pattern, phone):
+            errors.append('Please enter a valid phone number (10-15 digits)')
+            print("❌ Invalid phone number")
+        else:
+            print("✅ Phone validation passed")
+        
+        # Validate address
+        if len(address) < 5:
+            errors.append('Address must be at least 5 characters long')
+            print("❌ Address too short")
+        else:
+            print("✅ Address validation passed")
+        
+        # Validate district
+        if len(district) < 2:
+            errors.append('Please enter a valid district name')
+            print("❌ District too short")
+        else:
+            print("✅ District validation passed")
+        
+        # Validate password
+        if len(password) < 8:
+            errors.append('Password must be at least 8 characters long')
+            print("❌ Password too short")
+        elif password != confirm_password:
+            errors.append('Passwords do not match')
+            print("❌ Passwords don't match")
+        else:
+            print("✅ Password length OK")
+            # Password strength checks
+            if not re.search(r'[A-Z]', password):
+                errors.append('Password must contain at least one uppercase letter')
+                print("❌ No uppercase letter")
+            if not re.search(r'[a-z]', password):
+                errors.append('Password must contain at least one lowercase letter')
+                print("❌ No lowercase letter")
+            if not re.search(r'[0-9]', password):
+                errors.append('Password must contain at least one number')
+                print("❌ No number")
+            if not re.search(r'[^A-Za-z0-9]', password):
+                errors.append('Password must contain at least one special character')
+                print("❌ No special character")
+        
+        print(f"\n📊 Total Errors: {len(errors)}")
+        if errors:
+            print("Errors:")
+            for error in errors:
+                print(f"  ❌ {error}")
+        
+        # If no errors, create user and customer
+        if not errors:
+            print("\n" + "=" * 60)
+            print("✅ ALL VALIDATIONS PASSED - Creating User and Customer")
+            print("=" * 60)
+            
+            try:
+                # ===== STEP 1: Create User =====
+                print("\n🔄 Step 1: Creating User...")
+                
+                # 🔥🔥🔥 এখানে username=None যোগ করুন 🔥🔥🔥
+                user = User.objects.create_user(
+                    email=email,
+                    password=password,
+                    username=None,  # ✅ এটা যোগ করুন
+                    first_name=first_name,
+                    last_name=last_name,
+                    phone=phone,
+                    address=address,
+                    district=district,
+                    user_type=role,
+                    is_active=True,
+                    is_verified=False
+                )
+                print(f"✅ User created: {user.email} (ID: {user.id})")
+                
+                # ===== STEP 2: Create User Profile =====
+                print("\n🔄 Step 2: Creating UserProfile...")
+                UserProfile.objects.create(user=user)
+                print(f"✅ UserProfile created for: {user.email}")
+                
+                # ===== STEP 3: Create Customer =====
+                print("\n🔄 Step 3: Creating Customer...")
+                customer = Customer.objects.create(
+                    user=user,
+                    name=f"{first_name} {last_name}",
+                    email=email,
+                    phone=phone,
+                    address=address,
+                    district=district,
+                    is_active=True,
+                    is_diabetic=False,
+                    diabetes_type='none',
+                    has_high_blood_pressure=False,
+                    blood_pressure_status='normal'
+                )
+                print(f"✅ Customer created: {customer.name} (ID: {customer.id})")
+                
+                # ===== STEP 4: লগইন করে হোমে পাঠান =====
+                print("\n🔄 Step 4: Logging in user...")
+                auth_login(request, user)
+                print("✅ User logged in")
+                
+                messages.success(
+                    request, 
+                    '🎉 Account created successfully! Welcome to Superwater.'
+                )
+                
+                print("\n" + "=" * 60)
+                print("✅ REGISTRATION COMPLETE - Redirecting to home")
+                print("=" * 60)
+                
+                return redirect('login')
+                
+            except IntegrityError as e:
+                print(f"\n❌ IntegrityError: {str(e)}")
+                import traceback
+                print(traceback.format_exc())
+                
+                if 'UNIQUE constraint failed' in str(e):
+                    messages.error(request, 'This email is already registered. Please login or use a different email.')
+                else:
+                    messages.error(request, f'Database error: {str(e)}')
+                    
+            except Exception as e:
+                print(f"\n❌ Unexpected error: {str(e)}")
+                import traceback
+                print(traceback.format_exc())
+                messages.error(request, 'An unexpected error occurred. Please try again.')
+        else:
+            # Display errors
+            print("\n❌ Validation errors found - Showing messages to user")
+            for error in errors:
+                messages.error(request, error)
+                print(f"  Showing error: {error}")
+    
+    # GET request - show registration form
+    print("\n🔄 Rendering registration form")
+    return render(request, 'registration.html')
+
+def user_login(request):
+    """User login view - Direct password check"""
+    print("=" * 60)
+    print("🔵 LOGIN VIEW CALLED")
+    print(f"Method: {request.method}")
+    print("=" * 60)
+    
+    if request.user.is_authenticated:
+        return redirect('home')
+    
+    if request.method == 'POST':
+        email = request.POST.get('email', '').strip().lower()
+        password = request.POST.get('password', '')
+        
+        print(f"📧 Login Email: {email}")
+        print(f"🔑 Password: {password}")
+        print(f"🔑 Password length: {len(password)}")
+        
+        if not email or not password:
+            messages.error(request, 'Please enter both email and password')
+            return render(request, 'registration/login.html')
+        
+        try:
+            # সরাসরি ইউজার খুঁজুন
+            user = User.objects.get(email=email)
+            print(f"👤 User found: {user.email}")
+            print(f"🔓 Is active: {user.is_active}")
+            
+            # সরাসরি পাসওয়ার্ড চেক করুন
+            password_valid = user.check_password(password)
+            print(f"🔐 Password valid: {password_valid}")
+            
+            if password_valid and user.is_active:
+                # লগইন করুন
+                auth_login(request, user)
+                messages.success(request, f'Welcome back, {user.first_name}!')
+                
+                next_url = request.GET.get('next', 'home')
+                print(f"✅ Login successful, redirecting to: {next_url}")
+                return redirect(next_url)
+            elif not password_valid:
+                messages.error(request, 'Invalid password. Please try again.')
+                print("❌ Password incorrect")
+            else:
+                messages.error(request, 'Your account is inactive.')
+                print("❌ User is inactive")
+                
+        except User.DoesNotExist:
+            print("❌ User not found")
+            messages.error(request, 'No account found with this email address.')
+        except Exception as e:
+            print(f"❌ Error: {e}")
+            print(traceback.format_exc())
+            messages.error(request, 'An error occurred during login. Please try again.')
+    
+    return render(request, 'login.html')
+
+
+def user_logout(request):
+    """User logout view"""
+    auth_logout(request)
+    messages.info(request, 'You have been logged out successfully.')
+    return redirect('home')
+
+
+@login_required
+def profile(request):
+    """User profile view"""
+    user = request.user
+    
+    if request.method == 'POST':
+        # Update profile
+        first_name = request.POST.get('first_name', '').strip()
+        last_name = request.POST.get('last_name', '').strip()
+        phone = request.POST.get('phone', '').strip()
+        address = request.POST.get('address', '').strip()
+        district = request.POST.get('district', '').strip()
+        
+        errors = []
+        
+        if len(first_name) < 2:
+            errors.append('First name must be at least 2 characters')
+        if len(last_name) < 2:
+            errors.append('Last name must be at least 2 characters')
+        
+        phone_pattern = r'^[0-9+\-\s()]{10,15}$'
+        if not re.match(phone_pattern, phone):
+            errors.append('Please enter a valid phone number')
+        
+        if len(address) < 5:
+            errors.append('Address must be at least 5 characters')
+        if len(district) < 2:
+            errors.append('Please enter a valid district')
+        
+        if not errors:
+            user.first_name = first_name
+            user.last_name = last_name
+            user.phone = phone
+            user.address = address
+            user.district = district
+            user.save()
+            
+            # Update customer record as well
+            try:
+                customer = Customer.objects.get(email=user.email)
+                customer.name = f"{first_name} {last_name}"
+                customer.phone = phone
+                customer.address = address
+                customer.district = district
+                customer.save()
+            except Customer.DoesNotExist:
+                pass
+            
+            messages.success(request, 'Profile updated successfully!')
+            return redirect('profile')
+        else:
+            for error in errors:
+                messages.error(request, error)
+    
+    return render(request, 'profile.html', {'user': user})
+
+
+@login_required
+def customer_dashboard(request):
+    """Customer dashboard showing health profile and orders"""
+    try:
+        # Get or create customer record
+        customer, created = Customer.objects.get_or_create(
+            email=request.user.email,
+            defaults={
+                'user': request.user,
+                'name': request.user.full_name,
+                'phone': request.user.phone,
+                'address': request.user.address,
+                'district': request.user.district,
+            }
+        )
+        # Update customer if user info changed
+        if not created:
+            customer.name = request.user.full_name
+            customer.phone = request.user.phone
+            customer.address = request.user.address
+            customer.district = request.user.district
+            customer.save()
+        
+        context = {
+            'customer': customer,
+            'health_summary': customer.get_health_summary() if hasattr(customer, 'get_health_summary') else [],
+        }
+        return render(request, 'registration/customer_dashboard.html', context)
+    except Customer.DoesNotExist:
+        # Create customer if doesn't exist
+        customer = Customer.objects.create(
+            user=request.user,
+            name=request.user.full_name,
+            email=request.user.email,
+            phone=request.user.phone,
+            address=request.user.address,
+            district=request.user.district,
+        )
+        return redirect('customer_dashboard')
+
+
+@login_required
+def update_health_info(request):
+    """Update customer health information"""
+    if request.method == 'POST':
+        try:
+            customer = Customer.objects.get(email=request.user.email)
+        except Customer.DoesNotExist:
+            customer = Customer.objects.create(
+                user=request.user,
+                name=request.user.full_name,
+                email=request.user.email,
+            )
+        
+        # Update health info
+        customer.is_diabetic = request.POST.get('is_diabetic') == 'on'
+        customer.diabetes_type = request.POST.get('diabetes_type', 'none')
+        customer.has_high_blood_pressure = request.POST.get('has_high_blood_pressure') == 'on'
+        customer.blood_pressure_status = request.POST.get('blood_pressure_status', 'normal')
+        customer.save()
+        
+        messages.success(request, 'Health information updated successfully!')
+        return redirect('customer_dashboard')
+    
+    return redirect('customer_dashboard')
+
+
+@login_required
+def change_password(request):
+    """Change password view"""
+    if request.method == 'POST':
+        current_password = request.POST.get('current_password', '')
+        new_password = request.POST.get('new_password', '')
+        confirm_password = request.POST.get('confirm_password', '')
+        
+        # Verify current password
+        if not request.user.check_password(current_password):
+            messages.error(request, 'Current password is incorrect')
+            return redirect('change_password')
+        
+        if len(new_password) < 8:
+            messages.error(request, 'New password must be at least 8 characters long')
+            return redirect('change_password')
+        
+        if new_password != confirm_password:
+            messages.error(request, 'Passwords do not match')
+            return redirect('change_password')
+        
+        # Change password
+        request.user.set_password(new_password)
+        request.user.save()
+        messages.success(request, 'Password changed successfully! Please login again.')
+        
+        # Logout and redirect to login
+        auth_logout(request)
+        return redirect('login')
+    
+    return render(request, 'change_password.html')
+
+
+# views.py
+from django.http import JsonResponse
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+def check_auth(request):
+    """Check if user is authenticated - Real time check"""
+    print("=" * 50)
+    print("🔍 CHECK AUTH CALLED")
+    print(f"User: {request.user}")
+    print(f"Is authenticated: {request.user.is_authenticated}")
+    print(f"Session key: {request.session.session_key}")
+    print("=" * 50)
+    
+    return JsonResponse({
+        'is_authenticated': request.user.is_authenticated,
+        'user_email': request.user.email if request.user.is_authenticated else None,
+        'user_id': request.user.id if request.user.is_authenticated else None,
+        'session_key': request.session.session_key
+    })
+#--------------------------------------Inventory add products--------------------#
+# views.py
+
+
+# ===== Add Inventory (Stock ইনক্রিজ) =====
+# views.py
+# views.py
+from django.http import JsonResponse, HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from django.contrib.auth.decorators import login_required
+from django.contrib.admin.views.decorators import staff_member_required
+from .models import Product, Inventory
+import json
+import csv
+from datetime import datetime
+from decimal import Decimal
+
+# ===== Add Inventory API =====
+@csrf_exempt
+@require_http_methods(["POST"])
+@login_required
+def add_inventory_api(request):
+    """API: Add inventory by product name - Admin only"""
+    try:
+        # Check admin access
+        if not request.user.is_staff and not request.user.is_superuser:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Admin access required'
+            }, status=403)
+        
+        data = json.loads(request.body)
+        product_name = data.get('product_name', '').strip()
+        quantity = data.get('quantity', 0)
+        notes = data.get('notes', '')
+        
+        if not product_name:
+            return JsonResponse({'status': 'error', 'message': 'Product name is required'}, status=400)
+        if quantity <= 0:
+            return JsonResponse({'status': 'error', 'message': 'Quantity must be greater than 0'}, status=400)
+        
+        # Find product by name (case insensitive)
+        product = Product.objects.filter(name__iexact=product_name, is_active=True).first()
+        
+        if not product:
+            return JsonResponse({
+                'status': 'error', 
+                'message': f'Product "{product_name}" not found. Please check the name.'
+            }, status=404)
+        
+        # Get current stock
+        try:
+            current_stock = product.get_inventory_total()
+        except:
+            current_stock = product.stock_quantity or 0
+        
+        new_stock = current_stock + quantity
+        
+        # Create inventory entry
+        try:
+            from .models import Inventory
+            inventory = Inventory.objects.create(
+                product=product,
+                quantity=quantity,
+                previous_stock=current_stock,
+                new_stock=new_stock,
+                movement_type='add',
+                notes=notes or f'Added {quantity} units - Added by {request.user.email}',
+                user=request.user
+            )
+        except:
+            # Inventory model doesn't exist, update stock_quantity directly
+            product.stock_quantity = new_stock
+            product.save()
+            inventory = None
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': f'Added {quantity} units to {product.name}',
+            'product_id': product.id,
+            'product_name': product.name,
+            'previous_stock': current_stock,
+            'new_stock': new_stock
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        print(f"❌ Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
+
+
+# ===== Export Inventory Excel =====
+@login_required
+def export_inventory_excel(request):
+    """Export inventory data as CSV/Excel"""
+    try:
+        if not request.user.is_staff and not request.user.is_superuser:
+            return JsonResponse({'status': 'error', 'message': 'Admin access required'}, status=403)
+        
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="inventory_report_{datetime.now().strftime("%Y%m%d")}.csv"'
+        
+        writer = csv.writer(response)
+        writer.writerow([
+            'Product ID', 'Product Name', 'Category', 'Price', 
+            'Stock Quantity', 'Inventory Total', 'Inventory Value', 
+            'Status', 'Created At'
+        ])
+        
+        products = Product.objects.filter(is_active=True).order_by('-created_at')
+        
+        for product in products:
+            try:
+                inventory_total = product.get_inventory_total()
+            except:
+                inventory_total = product.stock_quantity or 0
+            
+            inventory_value = float(product.price) * inventory_total
+            
+            status = 'In Stock' if inventory_total > 20 else 'Low Stock' if inventory_total > 0 else 'Out of Stock'
+            
+            writer.writerow([
+                product.id,
+                product.name,
+                product.category,
+                float(product.price),
+                product.stock_quantity,
+                inventory_total,
+                inventory_value,
+                status,
+                product.created_at.strftime('%Y-%m-%d %H:%M')
+            ])
+        
+        return response
+        
+    except Exception as e:
+        print(f"❌ Export error: {str(e)}")
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
+# ===== Export Inventory PDF =====
+@login_required
+def export_inventory_pdf(request):
+    """Export inventory data as PDF"""
+    try:
+        if not request.user.is_staff and not request.user.is_superuser:
+            return JsonResponse({'status': 'error', 'message': 'Admin access required'}, status=403)
+        
+        # Check if reportlab is available
+        try:
+            from reportlab.lib import colors
+            from reportlab.lib.pagesizes import landscape, A4
+            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+            from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+            from reportlab.lib.units import inch
+            from reportlab.lib.enums import TA_CENTER, TA_LEFT
+        except ImportError:
+            return JsonResponse({
+                'status': 'error', 
+                'message': 'ReportLab not installed. Please install: pip install reportlab'
+            }, status=400)
+        
+        response = HttpResponse(content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="inventory_report_{datetime.now().strftime("%Y%m%d")}.pdf"'
+        
+        buffer = io.BytesIO()
+        doc = SimpleDocTemplate(buffer, pagesize=landscape(A4))
+        
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'TitleStyle',
+            parent=styles['Heading1'],
+            fontSize=20,
+            textColor=colors.HexColor('#007bff'),
+            alignment=TA_CENTER,
+            spaceAfter=20
+        )
+        
+        story = []
+        
+        # Title
+        story.append(Paragraph("📦 Inventory Report - Superwater", title_style))
+        story.append(Paragraph(f"Generated: {datetime.now().strftime('%B %d, %Y at %I:%M %p')}", 
+                              ParagraphStyle('SubTitle', parent=styles['Normal'], fontSize=12, textColor=colors.HexColor('#666'), alignment=TA_CENTER)))
+        story.append(Spacer(1, 0.2*inch))
+        
+        # Table data
+        table_data = [['ID', 'Product', 'Category', 'Price', 'Stock', 'Inventory', 'Value', 'Status']]
+        
+        products = Product.objects.filter(is_active=True).order_by('-created_at')
+        
+        for product in products[:100]:  # Limit to 100 products
+            try:
+                inventory_total = product.get_inventory_total()
+            except:
+                inventory_total = product.stock_quantity or 0
+            
+            inventory_value = float(product.price) * inventory_total
+            
+            if inventory_total > 20:
+                status = 'In Stock'
+                status_color = 'green'
+            elif inventory_total > 0:
+                status = 'Low Stock'
+                status_color = 'orange'
+            else:
+                status = 'Out of Stock'
+                status_color = 'red'
+            
+            table_data.append([
+                str(product.id),
+                product.name[:25] + ('...' if len(product.name) > 25 else ''),
+                product.category,
+                f"৳{float(product.price):.2f}",
+                str(product.stock_quantity),
+                str(inventory_total),
+                f"৳{inventory_value:.2f}",
+                status
+            ])
+        
+        # Create table
+        table = Table(table_data, colWidths=[0.4*inch, 1.5*inch, 0.8*inch, 0.7*inch, 0.6*inch, 0.6*inch, 0.8*inch, 0.7*inch])
+        table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#007bff')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.HexColor('#f8f9fa')),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#ddd')),
+            ('FONTSIZE', (0, 1), (-1, -1), 7),
+            ('ALIGN', (0, 1), (0, -1), 'CENTER'),
+            ('ALIGN', (3, 1), (3, -1), 'RIGHT'),
+            ('ALIGN', (4, 1), (4, -1), 'CENTER'),
+            ('ALIGN', (5, 1), (5, -1), 'CENTER'),
+            ('ALIGN', (6, 1), (6, -1), 'RIGHT'),
+            ('ALIGN', (7, 1), (7, -1), 'CENTER'),
+            ('PADDING', (0, 0), (-1, -1), 3),
+        ]))
+        
+        story.append(table)
+        
+        # Footer
+        story.append(Spacer(1, 0.3*inch))
+        story.append(Paragraph("© 2026 Superwater - All rights reserved", 
+                              ParagraphStyle('Footer', parent=styles['Normal'], fontSize=10, textColor=colors.HexColor('#999'), alignment=TA_CENTER)))
+        
+        doc.build(story)
+        buffer.seek(0)
+        response.write(buffer.getvalue())
+        return response
+        
+    except Exception as e:
+        print(f"❌ PDF Export error: {str(e)}")
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+# ===== Remove Inventory (Stock ডিক্রিজ) =====
+@csrf_exempt
+@require_http_methods(["POST"])
+@login_required
+def remove_inventory_api(request):
+    """Remove stock from inventory - Admin only"""
+    try:
+        # Check admin access
+        if not request.user.is_staff and not request.user.is_superuser:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Admin access required'
+            }, status=403)
+        
+        data = json.loads(request.body)
+        product_id = data.get('product_id')
+        quantity = data.get('quantity', 0)
+        notes = data.get('notes', '')
+        
+        if not product_id:
+            return JsonResponse({'status': 'error', 'message': 'Product ID required'}, status=400)
+        
+        if quantity <= 0:
+            return JsonResponse({'status': 'error', 'message': 'Quantity must be greater than 0'}, status=400)
+        
+        # Get product
+        try:
+            product = Product.objects.get(id=product_id, is_active=True)
+        except Product.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Product not found'}, status=404)
+        
+        # Get current stock
+        current_stock = product.get_inventory_total()
+        
+        if current_stock < quantity:
+            return JsonResponse({
+                'status': 'error', 
+                'message': f'Insufficient stock. Available: {current_stock}, Requested: {quantity}'
+            }, status=400)
+        
+        new_stock = current_stock - quantity
+        
+        # Create inventory entry
+        inventory = Inventory.objects.create(
+            product=product,
+            quantity=-quantity,  # Negative for removal
+            previous_stock=current_stock,
+            new_stock=new_stock,
+            movement_type='remove',
+            notes=notes or f'Removed {quantity} units from inventory',
+            user=request.user
+        )
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': f'Removed {quantity} units from {product.name}',
+            'data': {
+                'inventory_id': inventory.id,
+                'product_id': product.id,
+                'product_name': product.name,
+                'previous_stock': current_stock,
+                'removed_quantity': quantity,
+                'new_stock': new_stock,
+                'movement_type': 'remove'
+            }
+        })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
+# ===== Get Inventory Status =====
+@login_required
+def get_inventory_status(request):
+    """Get current inventory status - Admin only"""
+    try:
+        if not request.user.is_staff and not request.user.is_superuser:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Admin access required'
+            }, status=403)
+        
+        products = Product.objects.filter(is_active=True)
+        
+        data = []
+        for product in products:
+            current_stock = product.get_inventory_total()
+            data.append({
+                'id': product.id,
+                'name': product.name,
+                'price': float(product.price),
+                'current_stock': current_stock,
+                'last_movement': product.get_inventory_movements().first().created_at.strftime('%Y-%m-%d %H:%M') if product.get_inventory_movements().exists() else None,
+                'image_url': product.image.url if product.image else None
+            })
+        
+        return JsonResponse({
+            'status': 'success',
+            'products': data,
+            'total_products': len(data)
+        })
+        
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
+# ===== Get Inventory History =====
+@login_required
+def get_inventory_history(request, product_id):
+    """Get inventory history for a specific product - Admin only"""
+    try:
+        if not request.user.is_staff and not request.user.is_superuser:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Admin access required'
+            }, status=403)
+        
+        product = Product.objects.get(id=product_id, is_active=True)
+        movements = product.get_inventory_movements()
+        
+        history = []
+        for movement in movements:
+            history.append({
+                'id': movement.id,
+                'quantity': movement.quantity,
+                'previous_stock': movement.previous_stock,
+                'new_stock': movement.new_stock,
+                'movement_type': movement.movement_type,
+                'notes': movement.notes,
+                'created_at': movement.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                'user': movement.user.email if movement.user else 'System'
+            })
+        
+        return JsonResponse({
+            'status': 'success',
+            'product_id': product.id,
+            'product_name': product.name,
+            'current_stock': product.get_inventory_total(),
+            'history': history,
+            'total_movements': len(history)
+        })
+        
+    except Product.DoesNotExist:
+        return JsonResponse({'status': 'error', 'message': 'Product not found'}, status=404)
+    except Exception as e:
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+    
+# views.py
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from django.contrib.auth.decorators import login_required
+from .models import Product, Inventory
+import json
+from decimal import Decimal
+
+# views.py
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
+from django.contrib.auth.decorators import login_required
+from .models import Product, Inventory
+from decimal import Decimal
+import json
+
+# views.py
+@csrf_exempt
+@require_http_methods(["POST"])
+@login_required
+def add_product_api(request):
+    """API: Add inventory for existing product - Admin only"""
+    try:
+        # Check admin access
+        if not request.user.is_staff and not request.user.is_superuser:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Admin access required'
+            }, status=403)
+        
+        # Get form data
+        product_id = request.POST.get('product_id')
+        quantity = request.POST.get('quantity')
+        notes = request.POST.get('notes', '')
+        movement_type = request.POST.get('movement_type', 'add')
+        
+        # Validation
+        if not product_id:
+            return JsonResponse({'status': 'error', 'message': 'Product ID is required'}, status=400)
+        if not quantity or int(quantity) <= 0:
+            return JsonResponse({'status': 'error', 'message': 'Valid quantity is required'}, status=400)
+        
+        # Get existing product
+        try:
+            product = Product.objects.get(id=product_id, is_active=True)
+        except Product.DoesNotExist:
+            return JsonResponse({'status': 'error', 'message': 'Product not found'}, status=404)
+        
+        # Get current stock
+        current_stock = product.get_inventory_total()
+        new_stock = current_stock + int(quantity)
+        
+        # ✅ শুধু Inventory entry তৈরি করুন (Product তৈরি করবেন না)
+        inventory = Inventory.objects.create(
+            product=product,
+            quantity=int(quantity),
+            previous_stock=current_stock,
+            new_stock=new_stock,
+            movement_type=movement_type,
+            notes=notes or f'Added {quantity} units to inventory - Added by {request.user.email}',
+            user=request.user
+        )
+        print(f"✅ Inventory entry created: {inventory.id} for {product.name}")
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': f'Added {quantity} units to {product.name} inventory',
+            'inventory_id': inventory.id,
+            'product_id': product.id,
+            'product_name': product.name,
+            'previous_stock': current_stock,
+            'new_stock': new_stock
+        })
+        
+    except Exception as e:
+        print(f"❌ Error adding inventory: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
+
+
+# views.py - এই ফাংশনটি যোগ করুন
+@csrf_exempt
+@require_http_methods(["POST"])
+@login_required
+def add_product_by_name_api(request):
+    """
+    🔥 admin_inventory থেকে প্রোডাক্ট যোগ করলে:
+    - শুধু ইনভেন্টরি বাড়বে
+    - প্রোডাক্ট admin_products এ যোগ হবে না (is_active = False)
+    - Admin পরে চাইলে admin_products এ active করতে পারবে
+    """
+    try:
+        if not request.user.is_staff and not request.user.is_superuser:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Admin access required'
+            }, status=403)
+        
+        data = json.loads(request.body)
+        product_name = data.get('name', '').strip()
+        quantity = data.get('quantity', 0)
+        price = data.get('price', 0)
+        description = data.get('description', '')
+        
+        if not product_name:
+            return JsonResponse({'status': 'error', 'message': 'Product name is required'}, status=400)
+        
+        if quantity <= 0:
+            return JsonResponse({'status': 'error', 'message': 'Quantity must be greater than 0'}, status=400)
+        
+        # চেক করুন প্রোডাক্ট ইতিমধ্যে আছে কিনা
+        existing_product = Product.objects.filter(name__iexact=product_name).first()
+        
+        if existing_product:
+            # প্রোডাক্ট থাকলে শুধু ইনভেন্টরি বাড়বে
+            current_inventory = existing_product.get_inventory_total()
+            new_inventory = current_inventory + quantity
+            
+            Inventory.objects.create(
+                product=existing_product,
+                quantity=quantity,
+                previous_stock=current_inventory,
+                new_stock=new_inventory,
+                movement_type='add',
+                notes=f'Added {quantity} units from admin_inventory - Added by {request.user.email}',
+                user=request.user
+            )
+            
+            return JsonResponse({
+                'status': 'success',
+                'message': f'Added {quantity} units to inventory: {product_name}',
+                'product_id': existing_product.id,
+                'product_name': existing_product.name,
+                'inventory_total': new_inventory,
+                'stock_quantity': existing_product.stock_quantity,
+                'total_available': new_inventory + existing_product.stock_quantity,
+                'action': 'inventory_added'
+            })
+        else:
+            # 🔥 নতুন প্রোডাক্ট তৈরি করুন কিন্তু admin_products এ দেখাবেন না
+            product = Product(
+                name=product_name,
+                price=Decimal(str(price)),
+                stock_quantity=0,
+                description=description,
+                category='Filters',
+            )
+            # 🔥 is_active = False (Admin পরে active করতে পারবে)
+            product.is_active = False
+            product.save()
+            
+            print(f"✅ New product created in inventory: {product_name} (is_active=False)")
+            
+            # Inventory তৈরি করুন
+            Inventory.objects.create(
+                product=product,
+                quantity=quantity,
+                previous_stock=0,
+                new_stock=quantity,
+                movement_type='product_created',
+                notes=f'Product created with {quantity} units from admin_inventory (inactive in admin_products)',
+                user=request.user
+            )
+            
+            return JsonResponse({
+                'status': 'success',
+                'message': f'Product "{product_name}" added to inventory with {quantity} units!',
+                'product_id': product.id,
+                'product_name': product.name,
+                'inventory_total': quantity,
+                'stock_quantity': 0,
+                'total_available': quantity,
+                'action': 'product_created_inventory_only',
+                'note': 'This product is inactive in admin_products. Admin can activate it manually.'
+            })
+        
+    except json.JSONDecodeError:
+        return JsonResponse({'status': 'error', 'message': 'Invalid JSON data'}, status=400)
+    except Exception as e:
+        print(f"❌ Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
+
+
+# views.py - সম্পূর্ণ আপডেটেড ফাংশন
+
+@csrf_exempt
+@require_http_methods(["POST"])
+@login_required
+def add_product_from_admin_products(request):
+    """
+    🔥 admin_products থেকে প্রোডাক্ট যোগ করলে:
+    - stock_quantity বাড়বে (Product Model)
+    - inventory কমবে (Inventory Model)
+    - প্রতিবার inventory চেক করবে
+    """
+    try:
+        print("=" * 60)
+        print("🔵 ADD PRODUCT FROM ADMIN PRODUCTS CALLED")
+        
+        # Check admin access
+        if not request.user.is_staff and not request.user.is_superuser:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Admin access required'
+            }, status=403)
+        
+        # Get data from POST
+        product_name = request.POST.get('name', '').strip()
+        stock_quantity = request.POST.get('stock_quantity', 0)
+        price = request.POST.get('price', 0)
+        description = request.POST.get('description', '')
+        product_id = request.POST.get('product_id')
+        is_active = request.POST.get('is_active', 'true') == 'true'
+        special_offer = request.POST.get('special_offer', '')
+        discount_price = request.POST.get('discount_price', '')
+        discount_percentage = request.POST.get('discount_percentage', '')
+        
+        print(f"📦 Product: {product_name}")
+        print(f"📦 Stock Qty: {stock_quantity}")
+        print(f"📦 Price: {price}")
+        print(f"📦 Product ID: {product_id}")
+        
+        # Validation
+        if not product_name:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Product name is required'
+            }, status=400)
+        
+        try:
+            stock_quantity = int(stock_quantity)
+            if stock_quantity <= 0:
+                return JsonResponse({
+                    'status': 'error',
+                    'message': 'Stock quantity must be greater than 0'
+                }, status=400)
+        except ValueError:
+            return JsonResponse({
+                'status': 'error',
+                'message': 'Invalid stock quantity'
+            }, status=400)
+        
+        # ============================================================
+        # 🔥 STEP 1: INVENTORY CHECK - প্রতিবার চেক করবে
+        # ============================================================
+        from django.db import models
+        total_inventory = Inventory.objects.aggregate(
+            total=models.Sum('quantity')
+        )['total'] or 0
+        
+        print(f"📊 Total inventory available: {total_inventory}")
+        print(f"📊 Requested stock: {stock_quantity}")
+        
+        # 🔥 Check if sufficient inventory
+        if total_inventory < stock_quantity:
+            print(f"❌ Insufficient inventory: {total_inventory} < {stock_quantity}")
+            return JsonResponse({
+                'status': 'error',
+                'message': f'Insufficient inventory. Available: {total_inventory}, Required: {stock_quantity}'
+            }, status=400)
+        
+        print(f"✅ Sufficient inventory available: {total_inventory} >= {stock_quantity}")
+        
+        # Find existing product
+        existing_product = None
+        if product_id:
+            try:
+                existing_product = Product.objects.get(id=product_id)
+                print(f"✅ Found product by ID: {existing_product.name}")
+            except Product.DoesNotExist:
+                print(f"⚠️ Product ID {product_id} not found")
+        
+        if not existing_product:
+            existing_product = Product.objects.filter(name__iexact=product_name).first()
+            if existing_product:
+                print(f"✅ Found product by name: {existing_product.name}")
+            else:
+                print(f"⚠️ No product found with name: {product_name}")
+        
+        if existing_product:
+            # ============================================================
+            # 🔥 UPDATE EXISTING PRODUCT
+            # ============================================================
+            print("🔄 Updating existing product...")
+            
+            # Update stock_quantity
+            old_stock = existing_product.stock_quantity or 0
+            new_stock = old_stock + stock_quantity
+            existing_product.stock_quantity = new_stock
+            
+            if price:
+                existing_product.price = Decimal(str(price))
+            if description:
+                existing_product.description = description
+            if special_offer:
+                existing_product.special_offer = special_offer
+            if discount_price:
+                existing_product.discount_price = Decimal(str(discount_price))
+            if discount_percentage:
+                existing_product.discount_percentage = int(discount_percentage)
+            
+            existing_product.is_active = is_active
+            existing_product.save()
+            print(f"✅ Stock updated: {old_stock} → {new_stock}")
+            
+            # ============================================================
+            # 🔥 REDUCE INVENTORY (Inventory কমবে)
+            # ============================================================
+            current_inventory = existing_product.get_inventory_total()
+            print(f"📊 Current inventory: {current_inventory}")
+            
+            if current_inventory >= stock_quantity:
+                inventory = Inventory.objects.create(
+                    product=existing_product,
+                    quantity=-stock_quantity,
+                    previous_stock=current_inventory,
+                    new_stock=current_inventory - stock_quantity,
+                    movement_type='remove',
+                    notes=f'Removed {stock_quantity} from inventory for product: {product_name}',
+                    user=request.user
+                )
+                remaining_inventory = current_inventory - stock_quantity
+                removed_from_inventory = stock_quantity
+                print(f"✅ Inventory reduced by {stock_quantity}")
+                print(f"✅ Remaining inventory: {remaining_inventory}")
+            elif current_inventory > 0:
+                inventory = Inventory.objects.create(
+                    product=existing_product,
+                    quantity=-current_inventory,
+                    previous_stock=current_inventory,
+                    new_stock=0,
+                    movement_type='remove',
+                    notes=f'Removed all inventory ({current_inventory}) for product: {product_name}',
+                    user=request.user
+                )
+                remaining_inventory = 0
+                removed_from_inventory = current_inventory
+                print(f"✅ All inventory removed: {current_inventory}")
+            else:
+                remaining_inventory = 0
+                removed_from_inventory = 0
+                print(f"⚠️ No inventory to remove")
+            
+            return JsonResponse({
+                'status': 'success',
+                'message': f'Added {stock_quantity} to stock: {product_name} (Inventory: -{removed_from_inventory})',
+                'product_id': existing_product.id,
+                'product_name': existing_product.name,
+                'stock_quantity': new_stock,
+                'inventory_total': remaining_inventory,
+                'removed_from_inventory': removed_from_inventory,
+                'action': 'stock_added_inventory_removed'
+            })
+        else:
+            # ============================================================
+            # 🔥 CREATE NEW PRODUCT
+            # ============================================================
+            print("🆕 Creating new product...")
+            
+            # Create product
+            product = Product.objects.create(
+                name=product_name,
+                price=Decimal(str(price)),
+                stock_quantity=stock_quantity,
+                description=description,
+                category='Filters',
+                is_active=is_active,
+                special_offer=special_offer if special_offer else None
+            )
+            print(f"✅ Product created: {product.name}")
+            
+            # Reduce inventory
+            inventory = Inventory.objects.create(
+                product=product,
+                quantity=-stock_quantity,
+                previous_stock=total_inventory,
+                new_stock=total_inventory - stock_quantity,
+                movement_type='remove',
+                notes=f'Stock taken from inventory for new product: {product.name}',
+                user=request.user
+            )
+            print(f"✅ Inventory reduced by {stock_quantity}")
+            print(f"✅ Remaining inventory: {total_inventory - stock_quantity}")
+            
+            return JsonResponse({
+                'status': 'success',
+                'message': f'Product "{product_name}" created with {stock_quantity} units! (Inventory: -{stock_quantity})',
+                'product_id': product.id,
+                'product_name': product.name,
+                'stock_quantity': stock_quantity,
+                'inventory_total': total_inventory - stock_quantity,
+                'removed_from_inventory': stock_quantity,
+                'action': 'product_created_inventory_removed'
+            })
+        
+    except Exception as e:
+        print(f"❌ Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=400)
