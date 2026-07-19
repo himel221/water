@@ -1,0 +1,346 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Quality Standards - Aquanimity{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/quality.css' %}">
+{% endblock %}
+
+{% block content %}
+<!-- =============================================
+   হিরো সেকশন - কোয়ালিটি স্ট্যান্ডার্ডস
+   ============================================= -->
+<section class="quality-hero-section">
+    <div class="container">
+        <div class="row align-items-center">
+            <!-- Left Side: Content -->
+            <div class="col-lg-6">
+                <div class="quality-hero-content">
+                    <span class="quality-hero-tag">QUALITY STANDARDS</span>
+                    <h1 class="quality-hero-title">The Standards <br>Defined.</h1>
+                    <p class="quality-hero-subtitle">
+                        The relentless protocol behind our quality standards.
+                    </p>
+                    
+                    <div class="quality-hero-features">
+                        <div class="hero-feature">
+                            <div class="hero-feature-icon">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            <div class="hero-feature-text">
+                                <h5>Safety First</h5>
+                                <p>Every batch screened for 280+ banned substances</p>
+                            </div>
+                        </div>
+                        <div class="hero-feature">
+                            <div class="hero-feature-icon">
+                                <i class="fas fa-flask"></i>
+                            </div>
+                            <div class="hero-feature-text">
+                                <h5>Rigorous Testing</h5>
+                                <p>NSF Certified for Sport® gold standard</p>
+                            </div>
+                        </div>
+                        <div class="hero-feature">
+                            <div class="hero-feature-icon">
+                                <i class="fas fa-leaf"></i>
+                            </div>
+                            <div class="hero-feature-text">
+                                <h5>Pure Ingredients</h5>
+                                <p>Tested for heavy metals &amp; contaminants</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Side: Image -->
+            <div class="col-lg-6">
+                <div class="quality-hero-image-wrapper">
+                    <img src="https://images.unsplash.com/photo-1576671081837-49000212a370?w=600&h=500&fit=crop" alt="Quality Standards" class="quality-hero-image">
+                    <div class="quality-hero-badge">
+                        <span class="badge-nsf">NSF</span>
+                        <span class="badge-sport">SPORT</span>
+                        <span class="badge-certified">CERTIFIED</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =============================================
+   ডিটেইলস সেকশন - জিগজ্যাগ লেআউট
+   ============================================= -->
+<section class="quality-details-section">
+    <div class="container">
+        <!-- 01. Safety - IMAGE LEFT | CONTENT RIGHT -->
+        <div class="quality-detail-block image-left">
+            <div class="row align-items-center">
+                <div class="col-lg-6 order-lg-1">
+                    <div class="detail-image-wrapper">
+                        <img src="https://images.unsplash.com/photo-1581093588401-fbb62a02f120?w=600&h=400&fit=crop" alt="Safety Testing" class="detail-image">
+                        <div class="detail-image-badge">
+                            <i class="fas fa-shield-alt"></i>
+                            <span>Safety Certified</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6 order-lg-2">
+                    <div class="detail-content">
+                        <span class="detail-number">01</span>
+                        <h3 class="detail-title">Safety</h3>
+                        <p class="detail-description">
+                            Every batch of product is screened for <strong>280+ substances</strong> banned by professional sports organizations worldwide. This isn't just for athletes; the certification provides reassurance that AGF products have been tested and certified for quality, safety, and safety for everyone.
+                        </p>
+                        <div class="detail-stats">
+                            <div class="stat-item">
+                                <span class="stat-number">280+</span>
+                                <span class="stat-label">Banned Substances</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-number">100%</span>
+                                <span class="stat-label">Batch Testing</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 02. Testing - CONTENT LEFT | IMAGE RIGHT -->
+        <div class="quality-detail-block image-right">
+            <div class="row align-items-center">
+                <div class="col-lg-6 order-lg-1">
+                    <div class="detail-content">
+                        <span class="detail-number">02</span>
+                        <h3 class="detail-title">Testing</h3>
+                        <div class="detail-badge-wrapper">
+                            <div class="detail-nsf-badge">
+                                <span class="nsf-main">NSF</span>
+                                <span class="nsf-sub">Certified for Sport™</span>
+                            </div>
+                        </div>
+                        <p class="detail-description">
+                            NSF Certified for Sport® is the gold standard in independent safety and quality testing. Our products undergo rigorous third-party testing to ensure they meet the highest standards of purity, potency, and safety.
+                        </p>
+                        <div class="detail-check-list">
+                            <div class="check-item">
+                                <i class="fas fa-check-circle"></i>
+                                <span>Third-party verified</span>
+                            </div>
+                            <div class="check-item">
+                                <i class="fas fa-check-circle"></i>
+                                <span>Gold standard certification</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6 order-lg-2">
+                    <div class="detail-image-wrapper">
+                        <img src="https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=600&h=400&fit=crop" alt="NSF Testing" class="detail-image">
+                        <div class="detail-image-badge">
+                            <i class="fas fa-flask"></i>
+                            <span>NSF Certified</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 03. Heavy Metals - IMAGE LEFT | CONTENT RIGHT -->
+        <div class="quality-detail-block image-left">
+            <div class="row align-items-center">
+                <div class="col-lg-6 order-lg-1">
+                    <div class="detail-image-wrapper">
+                        <img src="https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=600&h=400&fit=crop" alt="Heavy Metals Testing" class="detail-image">
+                        <div class="detail-image-badge">
+                            <i class="fas fa-microscope"></i>
+                            <span>Heavy Metal Analysis</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6 order-lg-2">
+                    <div class="detail-content">
+                        <span class="detail-number">03</span>
+                        <h3 class="detail-title">Heavy Metals Testing</h3>
+                        <p class="detail-description">
+                            Naturally occurring heavy metals are present in plant-based ingredients through soil and water. We test every batch for <strong>lead, mercury, cadmium, and arsenic</strong> to confirm levels fall well below the thresholds set by the United States Pharmacopeia (USP) and NSF International.
+                        </p>
+                        <div class="detail-metals">
+                            <div class="metal-item">
+                                <span class="metal-icon">Pb</span>
+                                <span class="metal-name">Lead</span>
+                            </div>
+                            <div class="metal-item">
+                                <span class="metal-icon">Hg</span>
+                                <span class="metal-name">Mercury</span>
+                            </div>
+                            <div class="metal-item">
+                                <span class="metal-icon">Cd</span>
+                                <span class="metal-name">Cadmium</span>
+                            </div>
+                            <div class="metal-item">
+                                <span class="metal-icon">As</span>
+                                <span class="metal-name">Arsenic</span>
+                            </div>
+                        </div>
+                        <div class="detail-compliance">
+                            <i class="fas fa-check-circle"></i>
+                            <span>Compliant with USP &amp; NSF Standards</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 04. Purity - CONTENT LEFT | IMAGE RIGHT -->
+        <div class="quality-detail-block image-right">
+            <div class="row align-items-center">
+                <div class="col-lg-6 order-lg-1">
+                    <div class="detail-content">
+                        <span class="detail-number">04</span>
+                        <h3 class="detail-title">Purity Testing</h3>
+                        <p class="detail-description">
+                            Every batch undergoes comprehensive purity testing to ensure our products are free from harmful contaminants and meet the highest quality standards for consumer safety.
+                        </p>
+                        <div class="detail-check-list">
+                            <div class="check-item">
+                                <i class="fas fa-check-circle"></i>
+                                <span>Contaminant-free verification</span>
+                            </div>
+                            <div class="check-item">
+                                <i class="fas fa-check-circle"></i>
+                                <span>Quality assurance certified</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6 order-lg-2">
+                    <div class="detail-image-wrapper">
+                        <img src="https://images.unsplash.com/photo-1581093588401-fbb62a02f120?w=600&h=400&fit=crop" alt="Purity Testing" class="detail-image">
+                        <div class="detail-image-badge">
+                            <i class="fas fa-certificate"></i>
+                            <span>Purity Certified</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 05. Potency - IMAGE LEFT | CONTENT RIGHT -->
+        <div class="quality-detail-block image-left">
+            <div class="row align-items-center">
+                <div class="col-lg-6 order-lg-1">
+                    <div class="detail-image-wrapper">
+                        <img src="https://images.unsplash.com/photo-1563013544-824ae1b704d3?w=600&h=400&fit=crop" alt="Potency Testing" class="detail-image">
+                        <div class="detail-image-badge">
+                            <i class="fas fa-bolt"></i>
+                            <span>Potency Verified</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6 order-lg-2">
+                    <div class="detail-content">
+                        <span class="detail-number">05</span>
+                        <h3 class="detail-title">Potency Testing</h3>
+                        <p class="detail-description">
+                            We verify the potency of every ingredient to ensure you receive the full benefits of our formulations, batch after batch. Our rigorous testing guarantees consistent quality and effectiveness.
+                        </p>
+                        <div class="detail-stats">
+                            <div class="stat-item">
+                                <span class="stat-number">100%</span>
+                                <span class="stat-label">Potency Verified</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-number">99.9%</span>
+                                <span class="stat-label">Ingredient Purity</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 06. Microbial - CONTENT LEFT | IMAGE RIGHT -->
+        <div class="quality-detail-block image-right">
+            <div class="row align-items-center">
+                <div class="col-lg-6 order-lg-1">
+                    <div class="detail-content">
+                        <span class="detail-number">06</span>
+                        <h3 class="detail-title">Microbial Testing</h3>
+                        <p class="detail-description">
+                            Our products are tested for microbial contaminants to ensure they are safe for consumption and meet strict quality control standards. We maintain the highest level of hygiene and safety.
+                        </p>
+                        <div class="detail-check-list">
+                            <div class="check-item">
+                                <i class="fas fa-check-circle"></i>
+                                <span>Microbial safety verified</span>
+                            </div>
+                            <div class="check-item">
+                                <i class="fas fa-check-circle"></i>
+                                <span>Hygiene certified</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6 order-lg-2">
+                    <div class="detail-image-wrapper">
+                        <img src="https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?w=600&h=400&fit=crop" alt="Microbial Testing" class="detail-image">
+                        <div class="detail-image-badge">
+                            <i class="fas fa-biohazard"></i>
+                            <span>Microbial Safe</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- =============================================
+   সিটিএ সেকশন
+   ============================================= -->
+<section class="quality-cta-section">
+    <div class="container">
+        <div class="cta-wrapper">
+            <div class="cta-content">
+                <span class="cta-tag">JOIN THE MOVEMENT</span>
+                <h2>Experience the <br>Aquanimity Difference</h2>
+                <p>Join thousands of satisfied customers who trust Aquanimity for their daily nutrition and hydration needs.</p>
+                <a href="#" class="btn-cta">
+                    Get Started <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Animate detail blocks on scroll
+    const detailBlocks = document.querySelectorAll('.quality-detail-block');
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('animate');
+            }
+        });
+    }, {
+        threshold: 0.2,
+        rootMargin: '0px 0px -50px 0px'
+    });
+
+    detailBlocks.forEach(block => observer.observe(block));
+
+    // CTA button click
+    document.querySelectorAll('.btn-cta').forEach(button => {
+        button.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('Button clicked');
+        });
+    });
+</script>
+{% endblock %}

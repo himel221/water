@@ -1,102 +1,121 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Shopping Cart - Superwater{% endblock %}
-
-{% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/cart.css' %}" />
-{% endblock %}
-
 {% block content %}
-<div class="cart-page">
-    <!-- Cart Header -->
-    <div class="cart-header-section">
-        <h1>
-            <i class="fas fa-shopping-cart"></i>
-            My Cart
-            <span class="cart-count-badge" id="cartCount">0</span>
-        </h1>
-        <a href="{% url 'shop' %}" class="continue-shopping" style="margin: 0;">
-            <i class="fas fa-arrow-left"></i> Continue Shopping
-        </a>
+<!-- ========================================
+     হিরো সেকশন (ভিডিও + নিচে টেক্সট)
+     ======================================== -->
+<section class="hero-section">
+    <div class="hero-video-wrapper">
+        <video class="hero-video" autoplay muted loop playsinline>
+            <source src="{% static 'images/bg.mp4' %}" type="video/mp4">
+            <!-- ফ্যালব্যাক ইমেজ -->
+            <img src="{% static 'images/hero-fallback.jpg' %}" alt="Superwater Hero" class="hero-fallback">
+        </video>
+        <div class="hero-overlay"></div>
     </div>
-
-    <!-- Cart Content -->
-    <div class="cart-grid">
-        <!-- Cart Items -->
-        <div class="cart-items-section" id="cartItemsSection">
-            <!-- Cart Header -->
-            <div class="cart-item-header">
-                <div>Product</div>
-                <div style="text-align: center;">Price</div>
-                <div style="text-align: center;">Quantity</div>
-                <div style="text-align: center;">Total</div>
-                <div style="text-align: center;">Action</div>
-            </div>
-
-            <!-- Cart Items Container -->
-            <div id="cartItemsContainer">
-                <!-- Items will be rendered by JavaScript -->
-            </div>
-        </div>
-
-        <!-- Cart Summary -->
-        <div class="cart-summary">
-            <div class="summary-card">
-                <div class="summary-title">
-                    <i class="fas fa-receipt"></i> Order Summary
-                </div>
-                
-                <div class="summary-row">
-                    <span>Subtotal</span>
-                    <span class="value" id="summarySubtotal">Tk0.00</span>
-                </div>
-                
-                <div class="summary-row" id="savingsRow" style="display: none;">
-                    <span>Total Savings</span>
-                    <span class="value discount" id="summarySavings">-Tk0.00</span>
-                </div>
-                
-                <div class="summary-row" id="discountRow" style="display: none;">
-                    <span>Coupon Discount</span>
-                    <span class="value discount" id="summaryDiscount">-Tk0.00</span>
-                </div>
-                
-                <div class="summary-divider"></div>
-                
-                <div class="summary-row total">
-                    <span>Total Payable</span>
-                    <span class="value" id="summaryTotal">Tk0.00</span>
-                </div>
-
-                <!-- Coupon Section -->
-                <div class="coupon-section">
-                    <div class="coupon-input-group">
-                        <input type="text" placeholder="Coupon code (SAVE10, SAVE20)" id="couponInput" />
-                        <button id="applyCouponBtn">APPLY</button>
+    
+    <!-- ✅ টেক্সট ভিডিওর নিচে (bottom) -->
+    <div class="hero-text-bottom">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-10 mx-auto">
+                    <div class="hero-text-items">
+                        <div class="hero-text-item">
+                            <i class="fas fa-certificate"></i>
+                            <span>NSF Certified for Sport®</span>
+                        </div>
+                        <div class="hero-text-divider"></div>
+                        <div class="hero-text-item">
+                            <i class="fas fa-flask"></i>
+                            <span>Science-Backed & Trusted</span>
+                        </div>
                     </div>
                 </div>
-
-                <button class="btn-checkout-cart" id="checkoutBtn">
-                    <i class="fas fa-lock"></i> PROCEED TO CHECKOUT →
-                </button>
             </div>
         </div>
     </div>
-</div>
-{% endblock %}
+</section>
 
-{% block extra_js %}
-<script src="{% static 'js/cart.js' %}"></script>
-<script>
-    // Initialize cart on page load
-    document.addEventListener('DOMContentLoaded', function() {
-        loadCart();
-        
-        // Update floating cart badge if exists
-        if (typeof updateFloatingCartBadge === 'function') {
-            updateFloatingCartBadge();
-        }
-    });
-</script>
+<!-- ========================================
+     স্ট্যাটিস্টিক্স সেকশন
+     ======================================== -->
+<section class="stats-section">
+    <div class="container">
+        <div class="row text-center">
+            <div class="col-6 col-md-3">
+                <div class="stat-item">
+                    <div class="stat-number" data-count="50">0</div>
+                    <div class="stat-label">+ দেশে সেবা</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="stat-item">
+                    <div class="stat-number" data-count="10000">0</div>
+                    <div class="stat-label">+ সন্তুষ্ট গ্রাহক</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="stat-item">
+                    <div class="stat-number" data-count="99">0</div>
+                    <div class="stat-label">% বিশুদ্ধতা</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="stat-item">
+                    <div class="stat-number" data-count="500">0</div>
+                    <div class="stat-label">+ পণ্য</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ========================================
+     ফিচার সেকশন
+     ======================================== -->
+<section class="features-section">
+    <div class="container">
+        <div class="section-header text-center">
+            <h2>আমাদের বিশেষত্ব</h2>
+            <p>কেন Aquanimity SuperWater বেছে নেবেন?</p>
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-microscope"></i>
+                    </div>
+                    <h5>ল্যাব টেস্টেড</h5>
+                    <p>আমাদের প্রতিটি পণ্য ল্যাবরেটরিতে পরীক্ষিত এবং ISO সনাক্তপ্রাপ্ত</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-recycle"></i>
+                    </div>
+                    <h5>ইকো ফ্রেন্ডলি</h5>
+                    <p>পরিবেশ বান্ধব প্যাকেজিং এবং টেকসই প্রযুক্তি ব্যবহার করি</p>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-truck"></i>
+                    </div>
+                    <h5>দ্রুত ডেলিভারি</h5>
+                    <p>সারা দেশে দ্রুত এবং নিরাপদ ডেলিভারি সেবা</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ===== CSS ===== -->
+<link rel="stylesheet" href="{% static 'css/home.css' %}">
+
+<!-- ===== JS ===== -->
+<script src="{% static 'js/home.js' %}"></script>
+
 {% endblock %}

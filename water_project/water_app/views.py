@@ -11,7 +11,10 @@ from django.db import models
 from django.contrib import messages
 from .forms import CustomerForm
 from django.contrib.auth import login as auth_login
-
+from django.shortcuts import render
+from django.http import JsonResponse
+from django.views.decorators.http import require_GET
+from .models import Product
 from django.contrib.auth import get_user_model
 import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
@@ -112,6 +115,9 @@ def explore(request):
 def cart(request):
     """Cart page view"""
     return render(request, 'cart.html', {'active_page': 'cart'})
+
+def quality_page(request):
+    return render(request, 'quality.html')
 
 
 # ===== API Views =====
@@ -1832,31 +1838,62 @@ def update_product(request, product_id):
         import traceback
         traceback.print_exc()
         return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
-    
 @csrf_exempt
 @staff_member_required
 def delete_product(request, product_id):
-    """Delete a product"""
+    """Delete a product but preserve inventory records"""
     if request.method != 'DELETE':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
     
     try:
+        from water_app.models import Product, Inventory
+        from django.core.files.storage import default_storage
+        
         product = get_object_or_404(Product, id=product_id)
+        
+        # 🔥 CRITICAL: First, update all inventory records for this product
+        # Set product to NULL so inventory records are preserved
+        updated_count = Inventory.objects.filter(product=product).update(product=None)
+        print(f"✅ Manually updated {updated_count} inventory records to NULL")
         
         # Delete image if exists
         if product.image:
             try:
                 default_storage.delete(product.image.path)
-            except:
-                pass
+                print(f"🗑️ Image deleted for product: {product.name}")
+            except Exception as e:
+                print(f"⚠️ Could not delete image: {str(e)}")
         
+        # Now delete the product (inventory records are already updated)
+        product_name = product.name
         product.delete()
-        return JsonResponse({'status': 'success', 'message': 'Product deleted successfully'})
+        print(f"✅ Product deleted: {product_name}")
         
+        # Count preserved inventory records
+        preserved_count = Inventory.objects.filter(product__isnull=True).count()
+        
+        return JsonResponse({
+            'status': 'success',
+            'message': f'Product "{product_name}" deleted successfully. {updated_count} inventory record(s) preserved.',
+            'product_id': product_id,
+            'product_name': product_name,
+            'inventory_preserved': updated_count,
+            'total_inventory_without_product': preserved_count
+        })
+        
+    except Product.DoesNotExist:
+        return JsonResponse({
+            'status': 'error',
+            'message': 'Product not found'
+        }, status=404)
     except Exception as e:
-        return JsonResponse({'status': 'error', 'message': str(e)}, status=400)
-
-
+        print(f"❌ Error: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return JsonResponse({
+            'status': 'error',
+            'message': str(e)
+        }, status=400)
 @csrf_exempt
 @staff_member_required
 def toggle_product_status(request, product_id):
@@ -2527,6 +2564,9 @@ def admin_inventory(request):
     }
     
     return render(request, 'admin_inventory.html', context)
+
+
+
 # ============================================================
 # 🔥 DELETE PRODUCT FROM INVENTORY (শুধু ইনভেন্টরি থেকে ডিলিট)
 # ============================================================
@@ -3587,37 +3627,6 @@ def export_customers_pdf(request):
 # views.py - Add these registration views
 
 
-# views.py - সম্পূর্ণ আপডেটেড কোড
-
-from django.shortcuts import render, redirect
-from django.contrib.auth import login as auth_login  # 🔥 এটা গুরুত্বপূর্ণ
-from django.contrib.auth import authenticate
-from django.contrib.auth import logout as auth_logout  # 🔥 logout-এর জন্যও
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from django.core.validators import validate_email
-from django.core.exceptions import ValidationError
-from django.db import IntegrityError
-from .models import User, UserProfile, Customer
-import re
-import traceback
-
-
-# views.py - আপডেটেড register view
-
-from django.shortcuts import render, redirect
-from django.contrib.auth import login as auth_login
-from django.contrib.auth import authenticate
-from django.contrib.auth import logout as auth_logout
-from django.contrib import messages
-from django.contrib.auth.decorators import login_required
-from django.core.validators import validate_email
-from django.core.exceptions import ValidationError
-from django.db import IntegrityError
-from django.views.decorators.csrf import csrf_protect  # 🔥 এটা যোগ করুন
-from .models import User, UserProfile, Customer
-import re
-import traceback
 
 
 # views.py - সম্পূর্ণ আপডেটেড
@@ -4917,3 +4926,124 @@ def add_product_from_admin_products(request):
             'status': 'error',
             'message': str(e)
         }, status=400)
+    
+
+#----------------------------Wesite view-------------------------------#
+
+from django.shortcuts import render
+from django.http import JsonResponse
+from django.views.decorators.http import require_GET
+from django.views.decorators.csrf import csrf_exempt
+from .models import Product
+
+def home(request):
+    return render(request, 'home.html', {'active_page': 'home'})
+
+def shop(request):
+    products = Product.objects.filter(is_active=True)
+    return render(request, 'shop.html', {
+        'active_page': 'shop',
+        'products': products
+    })
+
+def science(request):
+    return render(request, 'science.html', {'active_page': 'science'})
+
+def explore(request):
+    return render(request, 'explore.html', {'active_page': 'explore'})
+
+def cart(request):
+    return render(request, 'cart.html', {'active_page': 'cart'})
+
+def register(request):
+    return render(request, 'login.html', {'active_page': 'register'})
+
+# ============================================
+# ✅ API ভিউ - JSON ডেটা রিটার্ন করে
+# ============================================
+
+@require_GET
+def dropdown_products(request):
+    """
+    ড্রপডাউনের জন্য প্রোডাক্ট JSON আকারে রিটার্ন করে
+    URL: /api/dropdown-products/?limit=5
+    
+    📌 প্যারামিটার:
+    - limit: (optional) কতটি প্রোডাক্ট দেখাবে (ডিফল্ট: সব)
+    
+    📌 উদাহরণ:
+    - /api/dropdown-products/ → সব প্রোডাক্ট
+    - /api/dropdown-products/?limit=5 → প্রথম ৫টি
+    - /api/dropdown-products/?limit=10 → প্রথম ১০টি
+    """
+    try:
+        # ========================================
+        # 🔥 STEP 1: limit প্যারামিটার নেওয়া
+        # ========================================
+        limit_param = request.GET.get('limit')
+        
+        # ========================================
+        # 🔥 STEP 2: সব অ্যাক্টিভ প্রোডাক্ট নেওয়া
+        # ========================================
+        products = Product.objects.filter(is_active=True).order_by('-created_at')
+        
+        # ========================================
+        # 🔥 STEP 3: limit অ্যাপ্লাই করা (যদি থাকে)
+        # ========================================
+        if limit_param and limit_param.isdigit():
+            limit = int(limit_param)
+            # limit 1-20 এর মধ্যে রাখা (সুরক্ষা)
+            if limit < 1:
+                limit = 1
+            elif limit > 20:
+                limit = 20
+            products = products[:limit]
+        
+        # ========================================
+        # 🔥 STEP 4: JSON ডেটা তৈরি করা
+        # ========================================
+        data = []
+        for product in products:
+            # ডিসকাউন্ট পার্সেন্টেজ বের করা
+            discount_percentage = 0
+            if product.discount_price and product.price > product.discount_price:
+                discount_percentage = int(((product.price - product.discount_price) / product.price) * 100)
+            elif product.discount_percentage:
+                discount_percentage = product.discount_percentage
+            
+            # ইমেজ URL
+            image_url = None
+            if product.image:
+                try:
+                    image_url = product.image.url
+                except:
+                    image_url = None
+            
+            # শর্ট ডেসক্রিপশন
+            short_desc = product.short_description
+            if not short_desc and product.description:
+                short_desc = product.description[:100] + '...' if len(product.description) > 100 else product.description
+            elif not short_desc:
+                short_desc = ''
+            
+            data.append({
+                'id': product.id,
+                'name': product.name,
+                'slug': product.slug if hasattr(product, 'slug') else f"product-{product.id}",
+                'short_description': short_desc,
+                'price': float(product.price),
+                'compare_price': float(product.discount_price) if product.discount_price else None,
+                'discount_percentage': discount_percentage,
+                'image': image_url,
+                'is_new': getattr(product, 'is_new', False),
+                'is_on_sale': getattr(product, 'is_on_sale', False),
+            })
+        
+        return JsonResponse(data, safe=False)
+        
+    except Exception as e:
+        # এরর হলে JSON এ রিটার্ন
+        return JsonResponse({
+            'error': str(e),
+            'message': 'Failed to load products'
+        }, status=500)

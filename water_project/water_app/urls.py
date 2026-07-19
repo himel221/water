@@ -7,9 +7,11 @@ urlpatterns = [
     path('shop/', views.shop, name='shop'),
     path('science/', views.science, name='science'),
     path('explore/', views.explore, name='explore'),
+    path('api/dropdown-products/', views.dropdown_products, name='dropdown_products'),
+    path('quality/', views.quality_page, name='quality'),
 
     #Registration login 
-     path('register/', views.register, name='register'),
+    path('register/', views.register, name='register'),
     path('login/', views.user_login, name='login'), 
     path('logout/', views.user_logout, name='logout'),  
     path('profile/', views.profile, name='profile'),
@@ -76,6 +78,7 @@ path('admin-inventory/', views.admin_inventory, name='admin_inventory'),
     # Edit & Delete
     path('api/inventory/<int:product_id>/delete/', views.delete_inventory_product, name='delete_inventory_product'),
     path('api/inventory/<int:product_id>/edit/', views.edit_inventory_product, name='edit_inventory_product'),
+    path('api/inventory/status/',views.get_inventory_status, name='inventory_status'),
                     # Customer URLs
     #path('customer/add/', views.customer_form, name='customer_form'),
     #path('customer/success/', views.customer_success, name='customer_success'),

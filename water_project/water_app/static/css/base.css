@@ -1,384 +1,880 @@
-/* ============================================
-   BASE CSS - COMPLETE (Right Side & Overflow Fix)
-   ============================================ */
+/* ========================================
+   রিসেট & বেসিক স্টাইল
+   ======================================== */
 
-/* ===== Reset & Base ===== */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
-html, body {
-    height: 100%;
-    margin: 0;
-    padding: 0;
-    overflow-x: hidden; /* Horizontal scroll বন্ধ */
-}
-
 body {
-    font-family: 'Inter', Arial, sans-serif;
-    background-color: #ffffff;
-    color: #2c3e50;
+    font-family: 'Inter', sans-serif;
+    background: #f0f8ff;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
-    overflow-y: auto; /* Vertical scroll allowed */
 }
 
-/* ===== Root Variables ===== */
-:root {
-    --primary-blue: #007bff;
-    --primary-blue-hover: #0056b3;
-    --success-green: #28a745;
-    --dark-text: #2c3e50;
-    --light-text: #34495e;
-    --border-color: #e0e0e0;
-    --header-bg: #f8f9fa;
-    --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
-    --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
-    --radius-md: 8px;
-    --radius-lg: 10px;
-    --transition: 0.2s ease;
-    /* Estimated header height used to offset fixed/sticky elements */
-    --header-height: 64px;
-}
+/* ========================================
+   হেডার
+   ======================================== */
 
-/* ============================================
-   HEADER (Public)
-   ============================================ */
 .app-header {
-    background-color: var(--header-bg);
-    padding: 15px 40px;
+    background: #f7f3eb ;
+    box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+    padding: 12px 24px;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 2px solid var(--border-color);
-    position: sticky;
-    top: 0;
-    z-index: 100;
-    width: 100%;
-    flex-shrink: 0;
+    flex-wrap: wrap;
 }
 
 .header-left {
     display: flex;
     align-items: center;
     gap: 30px;
-    flex-wrap: wrap;
+    flex: 1;
 }
 
 .logo-link {
     display: flex;
     align-items: center;
-    gap: 10px;
     text-decoration: none;
-    color: var(--dark-text);
     flex-shrink: 0;
+    gap: 10px;
 }
 
 .logo-img {
-    width: 40px;
     height: 40px;
+    width: auto;
     object-fit: contain;
-    border-radius: var(--radius-md);
-    transition: transform var(--transition);
 }
 
-.logo-img:hover {
-    transform: scale(1.05);
-}
-
-.logo-text {
-    font-size: 20px;
-    font-weight: 700;
-    color: var(--dark-text);
-}
-
-/* ===== Navigation ===== */
 .nav-links {
     display: flex;
-    gap: 25px;
-    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
 }
 
 .nav-btn {
+    padding: 8px 16px;
+    border-radius: 8px;
     text-decoration: none;
-    font-size: 16px;
-    padding: 8px 12px;
-    color: var(--dark-text);
+    color: #4a5568;
     font-weight: 500;
-    transition: color var(--transition);
-    position: relative;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
     white-space: nowrap;
-}
-
-.nav-btn i {
-    margin-right: 6px;
 }
 
 .nav-btn:hover {
-    color: var(--primary-blue);
+    background: #0f93da;
+    color: #ffffff;
 }
 
 .nav-btn.active {
-    color: var(--primary-blue);
-    font-weight: 700;
+    background: #0077be;
+    color: white;
 }
 
-.nav-btn.active::after {
-    display: none;
-}
-
-/* ===== Header Right ===== */
 .header-right {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
     flex-shrink: 0;
 }
 
-.header-cart-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 42px;
-    height: 42px;
-    border-radius: 50%;
-    color: var(--dark-text);
-    background-color: #ffffff;
-    border: 1px solid var(--border-color);
-    text-decoration: none;
-    transition: all var(--transition);
-    cursor: pointer;
+/* ========================================
+   ড্রপডাউন মেনু (ডেস্কটপ)
+   ======================================== */
+
+.nav-dropdown {
+    position: relative;
 }
 
-.header-cart-icon:hover,
-.header-cart-icon.active {
-    color: var(--primary-blue);
-    border-color: var(--primary-blue);
-    transform: translateY(-1px);
+.nav-dropdown .dropdown-arrow {
+    font-size: 10px;
+    margin-left: 4px;
+    transition: transform 0.3s ease;
 }
 
-.header-cart-icon i {
-    font-size: 18px;
+.nav-dropdown:hover .dropdown-arrow {
+    transform: rotate(180deg);
 }
 
-.btn-signin {
-    padding: 10px 24px;
-    font-size: 16px;
-    background-color: var(--primary-blue);
-    color: white;
-    border: none;
-    border-radius: var(--radius-md);
-    cursor: pointer;
-    font-weight: 500;
-    font-family: 'Inter', Arial, sans-serif;
-    transition: background-color var(--transition), transform var(--transition);
-    white-space: nowrap;
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
+.dropdown-menu {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    left: 50%;
+    transform: translateY(10px);
+    min-width: 450px;
+    max-width: 90vw;
+    max-height: 80vh;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+    padding: 16px 20px;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    z-index: 1000;
+    overflow-y: auto;
 }
 
-.btn-signin i {
-    margin-right: 8px;
-}
-
-.btn-signin:hover {
-    background-color: var(--primary-blue-hover);
-    transform: translateY(-1px);
-    color: white;
-}
-
-.btn-signin:active {
+.nav-dropdown:hover .dropdown-menu {
+    opacity: 1;
+    visibility: visible;
     transform: translateY(0);
 }
 
-/* ============================================
-   MAIN CONTENT
-   ============================================ */
-.app-main {
-    flex: 1 0 auto; /* Grow but don't shrink */
-    padding: 40px 30px;
-    max-width: 100%;
-    margin: 0 auto;
-    width: 100%;
-    overflow-x: hidden; /* Horizontal scroll বন্ধ */
-}
-
-/* ============================================
-   FOOTER - Normal flow (not fixed/sticky)
-   ============================================ */
-.app-footer {
-    background-color: var(--header-bg);
-    color: var(--dark-text);
-    padding: 20px 40px;
-    border-top: 2px solid var(--border-color);
-    flex-shrink: 0; /* Prevent footer from shrinking */
-    width: 100%;
-    margin-top: auto; /* Push to bottom if content is short */
-    position: relative; /* Normal document flow */
-}
-
-.footer-content {
-    max-width: 1200px;
-    margin: 0 auto;
+.dropdown-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    flex-wrap: wrap;
-    gap: 20px;
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #f0f8ff;
+    position: sticky;
+    top: 0;
+    background: white;
+    z-index: 2;
 }
 
-.footer-links {
+.dropdown-header h4 {
+    font-size: 15px;
+    font-weight: 700;
+    color: #2d3748;
+    margin: 0;
+}
+
+.dropdown-header h4 i {
+    color: #0077be;
+    margin-right: 8px;
+}
+
+.dropdown-header .view-all-link {
+    font-size: 13px;
+    color: #0077be;
+    text-decoration: none;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.dropdown-header .view-all-link:hover {
+    color: #005a8c;
+    text-decoration: underline;
+}
+
+/* ========================================
+   সিরিয়াল লিস্ট ভিউ
+   ======================================== */
+
+.dropdown-products-list {
     display: flex;
-    gap: 20px;
+    flex-direction: column;
+    gap: 4px;
 }
 
-.footer-links a {
-    color: var(--dark-text);
+.dropdown-product-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 14px;
+    border-radius: 10px;
+    text-decoration: none;
+    color: #4a5568;
+    transition: all 0.3s ease;
+    background: #f8fafc;
+    border: 1px solid transparent;
+    cursor: pointer;
+}
+
+.dropdown-product-item:hover {
+    background: #ebf8ff;
+    border-color: #0077be;
+    transform: translateX(4px);
+}
+
+.dropdown-product-item img {
+    width: 50px;
+    height: 50px;
+    border-radius: 10px;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: #f1f3f6;
+}
+
+.dropdown-product-item .product-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.dropdown-product-item .product-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: #2d3748;
+    margin-bottom: 2px;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.dropdown-product-item .product-desc {
+    font-size: 12px;
+    color: #a0aec0;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.4;
+}
+
+.dropdown-product-item .product-price {
+    font-weight: 700;
+    color: #0077be;
+    font-size: 15px;
+    flex-shrink: 0;
+    margin-left: 8px;
+}
+
+.dropdown-product-item .product-price .original {
+    font-weight: 400;
+    color: #a0aec0;
+    text-decoration: line-through;
+    font-size: 12px;
+    margin-left: 4px;
+}
+
+.dropdown-product-item .product-badge {
+    display: inline-block;
+    color: white;
+    font-size: 9px;
+    font-weight: 700;
+    padding: 1px 10px;
+    border-radius: 20px;
+    flex-shrink: 0;
+    margin-left: 6px;
+}
+
+.dropdown-product-item .product-badge.new {
+    background: #38a169;
+}
+
+.dropdown-product-item .product-badge.sale {
+    background: #e53e3e;
+}
+
+/* ========================================
+   মোর প্রোডাক্ট সেকশন
+   ======================================== */
+
+.dropdown-divider {
+    height: 1px;
+    background: #e2e8f0;
+    margin: 8px 0;
+}
+
+.dropdown-more-products {
+    margin-top: 4px;
+}
+
+.dropdown-more-header {
+    padding: 8px 14px;
+    font-size: 13px;
+    color: #0077be;
+    font-weight: 600;
+    cursor: default;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #f7fafc;
+    border-radius: 8px;
+    margin-bottom: 4px;
+}
+
+.dropdown-more-header i {
+    font-size: 12px;
+}
+
+.dropdown-more-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-left: 4px;
+}
+
+/* ========================================
+   ড্রপডাউন ফুটার
+   ======================================== */
+
+.dropdown-footer {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid #e2e8f0;
+    text-align: center;
+    position: sticky;
+    bottom: 0;
+    background: white;
+    z-index: 2;
+}
+
+.dropdown-footer .btn-view-all {
+    display: inline-block;
+    padding: 10px 32px;
+    background: #0077be;
+    color: white;
+    border-radius: 50px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.dropdown-footer .btn-view-all:hover {
+    background: #005a8c;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 119, 190, 0.3);
+}
+
+.dropdown-footer .btn-view-all i {
+    margin-right: 8px;
+}
+
+/* ========================================
+   লোডিং ও খালি স্টেট
+   ======================================== */
+
+.dropdown-loading {
+    text-align: center;
+    padding: 30px 20px;
+    color: #a0aec0;
+}
+
+.dropdown-loading i {
+    font-size: 24px;
+    margin-bottom: 8px;
+    display: block;
+}
+
+.dropdown-empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: #a0aec0;
+}
+
+.dropdown-empty i {
+    font-size: 40px;
+    margin-bottom: 12px;
+    display: block;
+    opacity: 0.3;
+}
+
+.dropdown-empty p {
+    font-size: 15px;
+    margin-bottom: 4px;
+}
+
+.dropdown-empty small {
+    font-size: 12px;
+    color: #cbd5e0;
+}
+
+/* ========================================
+   স্ক্রলবার
+   ======================================== */
+
+.dropdown-menu::-webkit-scrollbar {
+    width: 5px;
+}
+
+.dropdown-menu::-webkit-scrollbar-track {
+    background: #f7fafc;
+    border-radius: 3px;
+}
+
+.dropdown-menu::-webkit-scrollbar-thumb {
+    background: #cbd5e0;
+    border-radius: 3px;
+}
+
+.dropdown-menu::-webkit-scrollbar-thumb:hover {
+    background: #a0aec0;
+}
+
+/* ========================================
+   কার্ট বাটন
+   ======================================== */
+
+.header-cart-icon {
+    background: none;
+    border: none;
     font-size: 20px;
-    transition: color var(--transition);
+    color: #4a5568;
+    padding: 8px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
 }
 
-.footer-links a:hover {
-    color: var(--primary-blue);
+.header-cart-icon:hover {
+    background: #ebf8ff;
+    color: #0077be;
 }
 
-/* ============================================
-   CART PANEL (Right Side)
-   ============================================ */
-.cart-panel-overlay {
+.cart-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: #e53e3e;
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid white;
+}
+
+.btn-signin {
+    padding: 8px 20px;
+    background: #0077be;
+    color: white;
+    border-radius: 50px;
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.btn-signin:hover {
+    background: #005a8c;
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 119, 190, 0.3);
+}
+
+/* ========================================
+   হ্যামবার্গার বাটন
+   ======================================== */
+
+.hamburger-btn {
+    display: none;
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #4a5568;
+    padding: 6px 10px;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+}
+
+.hamburger-btn:hover {
+    background: #ebf8ff;
+    color: #0077be;
+}
+
+/* ========================================
+   মোবাইল মেনু
+   ======================================== */
+
+.mobile-menu-overlay {
+    display: none;
     position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.35);
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 999;
     opacity: 0;
-    visibility: hidden;
-    transition: all 0.25s ease;
-    z-index: 998;
+    transition: opacity 0.3s ease;
+    backdrop-filter: blur(4px);
+}
+
+.mobile-menu-overlay.open {
+    display: block;
+    opacity: 1;
+}
+
+.mobile-menu {
+    position: fixed;
+    top: 0;
+    right: -380px;
+    width: 360px;
+    max-width: 85vw;
+    height: 100%;
+    background: white;
+    z-index: 1001;
+    padding: 0;
+    transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: -10px 0 40px rgba(0, 0, 0, 0.2);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.mobile-menu.open {
+    right: 0;
+}
+
+.mobile-menu-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    background: linear-gradient(135deg, #0077be, #00b4d8);
+    flex-shrink: 0;
+}
+
+.mobile-menu-header .logo-text {
+    color: white;
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.mobile-menu-close {
+    background: rgba(255, 255, 255, 0.2);
+    border: none;
+    font-size: 22px;
+    color: white;
+    cursor: pointer;
+    padding: 8px 12px;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.mobile-menu-close:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: rotate(90deg);
+}
+
+/* ========================================
+   মোবাইল নেভ লিংক
+   ======================================== */
+
+.mobile-nav-links {
+    padding: 12px 16px;
+    flex: 1;
+    overflow-y: auto;
+}
+
+.mobile-nav-btn {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    border-radius: 12px;
+    text-decoration: none;
+    color: #4a5568;
+    font-weight: 500;
+    font-size: 16px;
+    transition: all 0.2s ease;
+    margin-bottom: 2px;
+}
+
+.mobile-nav-btn:hover {
+    background: #f7fafc;
+    color: #0077be;
+}
+
+.mobile-nav-btn.active {
+    background: #ebf8ff;
+    color: #0077be;
+}
+
+.mobile-nav-btn i {
+    width: 24px;
+    text-align: center;
+    font-size: 18px;
+    color: #0077be;
+}
+
+/* ========================================
+   মোবাইল ড্রপডাউন
+   ======================================== */
+
+.mobile-nav-dropdown {
+    width: 100%;
+}
+
+.mobile-dropdown-toggle {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 16px;
+    color: #4a5568;
+    padding: 14px 16px;
+    border-radius: 12px;
+    transition: all 0.2s ease;
+}
+
+.mobile-dropdown-toggle:hover {
+    background: #f7fafc;
+    color: #0077be;
+}
+
+.mobile-dropdown-toggle.active {
+    background: #ebf8ff;
+    color: #0077be;
+}
+
+.mobile-dropdown-toggle span {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.mobile-dropdown-toggle span i {
+    width: 24px;
+    text-align: center;
+    font-size: 18px;
+    color: #0077be;
+}
+
+.mobile-dropdown-arrow {
+    font-size: 12px;
+    transition: transform 0.3s ease;
+}
+
+.mobile-dropdown-toggle.open .mobile-dropdown-arrow {
+    transform: rotate(180deg);
+}
+
+.mobile-dropdown-menu {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+    background: #f8fafc;
+    border-radius: 12px;
+    margin: 0 8px 8px 8px;
+}
+
+.mobile-dropdown-menu.open {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.mobile-dropdown-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 16px;
+    font-weight: 600;
+    font-size: 13px;
+    color: #2d3748;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.mobile-view-all-link {
+    color: #0077be;
+    text-decoration: none;
+    font-size: 12px;
+}
+
+.mobile-view-all-link:hover {
+    text-decoration: underline;
+}
+
+.mobile-dropdown-products {
+    padding: 4px 0;
+}
+
+.mobile-dropdown-products .dropdown-product-item {
+    padding: 8px 14px;
+    background: transparent;
+    border-radius: 8px;
+}
+
+.mobile-dropdown-products .dropdown-product-item:hover {
+    background: #ebf8ff;
+}
+
+.mobile-dropdown-products .dropdown-product-item img {
+    width: 40px;
+    height: 40px;
+}
+
+.mobile-dropdown-products .dropdown-product-item .product-name {
+    font-size: 13px;
+}
+
+.mobile-dropdown-products .dropdown-product-item .product-price {
+    font-size: 13px;
+}
+
+.mobile-dropdown-products .dropdown-empty {
+    padding: 20px;
+}
+
+.mobile-dropdown-products .dropdown-loading {
+    padding: 20px;
+}
+
+/* ========================================
+   মোবাইল সাইন ইন
+   ======================================== */
+
+.mobile-signin {
+    padding: 16px 24px;
+    border-top: 1px solid #e2e8f0;
+    flex-shrink: 0;
+}
+
+.btn-signin-mobile {
+    display: block;
+    padding: 14px;
+    background: #0077be;
+    color: white;
+    border-radius: 10px;
+    text-decoration: none;
+    font-weight: 600;
+    text-align: center;
+    transition: all 0.3s ease;
+}
+
+.btn-signin-mobile:hover {
+    background: #005a8c;
+}
+
+/* ========================================
+   কার্ট প্যানেল
+   ======================================== */
+
+.cart-panel-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    z-index: 2000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    backdrop-filter: blur(4px);
 }
 
 .cart-panel-overlay.open {
+    display: block;
     opacity: 1;
-    visibility: visible;
 }
 
 .cart-panel {
     position: fixed;
     top: 0;
-    right: -400px; /* Default: hidden */
-    width: 380px;
-    max-width: 100%;
-    height: 100vh;
-    background: #ffffff;
-    box-shadow: -10px 0 40px rgba(0, 0, 0, 0.15);
+    right: -420px;
+    width: 400px;
+    max-width: 90vw;
+    height: 100%;
+    background: white;
+    z-index: 2001;
+    padding: 24px;
     transition: right 0.35s cubic-bezier(0.4, 0, 0.2, 1);
-    z-index: 999;
+    box-shadow: -10px 0 40px rgba(0, 0, 0, 0.2);
     display: flex;
     flex-direction: column;
-    overflow: hidden;
 }
 
 .cart-panel.open {
     right: 0;
 }
 
-/* ===== Cart Panel Header ===== */
 .cart-panel-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 20px 24px 16px;
-    border-bottom: 1px solid var(--border-color);
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e2e8f0;
     flex-shrink: 0;
-    background: #ffffff;
 }
 
 .cart-panel-header h3 {
-    display: flex;
-    align-items: center;
-    gap: 8px;
     font-size: 18px;
-    margin: 0;
+    font-weight: 700;
+    color: #2d3748;
+}
+
+.cart-panel-header h3 i {
+    color: #0077be;
+    margin-right: 8px;
 }
 
 .cart-panel-count {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 24px;
-    height: 24px;
-    padding: 0 6px;
-    border-radius: 999px;
-    background: var(--primary-blue);
+    background: #0077be;
     color: white;
-    font-size: 12px;
-    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-size: 14px;
+    margin-left: 6px;
 }
 
 .close-cart-panel {
+    background: none;
     border: none;
-    background: transparent;
-    font-size: 22px;
+    font-size: 24px;
+    color: #4a5568;
     cursor: pointer;
-    color: var(--dark-text);
     padding: 4px 8px;
-    border-radius: 6px;
-    transition: background var(--transition);
+    border-radius: 8px;
+    transition: all 0.3s ease;
 }
 
 .close-cart-panel:hover {
-    background: #f0f0f0;
+    background: #f7fafc;
+    color: #e53e3e;
 }
 
-/* ===== Cart Panel Items ===== */
 .cart-panel-items {
     flex: 1;
     overflow-y: auto;
-    padding: 16px 24px;
-    overflow-x: hidden;
-}
-
-/* Cart Panel Scrollbar */
-.cart-panel-items::-webkit-scrollbar {
-    width: 4px;
-}
-
-.cart-panel-items::-webkit-scrollbar-track {
-    background: #f0f0f0;
-}
-
-.cart-panel-items::-webkit-scrollbar-thumb {
-    background: #c5cdd8;
-    border-radius: 10px;
+    padding: 16px 0;
 }
 
 .empty-cart-panel {
-    color: var(--light-text);
     text-align: center;
-    margin-top: 40px;
+    color: #a0aec0;
     font-size: 16px;
+    padding: 40px 0;
 }
 
 .cart-panel-item {
     display: flex;
     gap: 12px;
     padding: 12px 0;
-    border-bottom: 1px solid #f0f0f0;
-    align-items: center;
-}
-
-.cart-panel-item:last-child {
-    border-bottom: none;
+    border-bottom: 1px solid #f7fafc;
 }
 
 .cart-panel-item-image {
     width: 60px;
     height: 60px;
+    flex-shrink: 0;
     border-radius: 8px;
     overflow: hidden;
-    flex-shrink: 0;
+    background: #f7fafc;
 }
 
 .cart-panel-item-image img {
@@ -389,442 +885,253 @@ body {
 
 .cart-panel-item-details {
     flex: 1;
-    min-width: 0;
 }
 
 .cart-panel-item-details h4 {
-    font-size: 15px;
-    margin: 0 0 4px 0;
-    color: var(--dark-text);
-    word-break: break-word;
+    font-size: 14px;
+    font-weight: 600;
+    color: #2d3748;
+    margin-bottom: 4px;
 }
 
 .cart-panel-item-details p {
     font-size: 13px;
-    color: var(--light-text);
-    margin: 0;
+    color: #4a5568;
 }
 
-/* ===== Cart Panel Footer ===== */
 .cart-panel-footer {
-    padding: 16px 24px 24px;
-    border-top: 1px solid var(--border-color);
+    border-top: 1px solid #e2e8f0;
+    padding-top: 16px;
     flex-shrink: 0;
-    background: #ffffff;
 }
 
 .cart-panel-total {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 12px;
     font-weight: 700;
-    font-size: 16px;
+    font-size: 18px;
+    margin-bottom: 12px;
 }
 
 .cart-panel-total-value {
-    color: var(--primary-blue);
+    color: #0077be;
 }
 
 .btn-view-cart {
-    display: inline-block;
-    width: 100%;
-    text-align: center;
-    padding: 12px 12px;
-    background: var(--primary-blue);
+    display: block;
+    padding: 12px;
+    background: #0077be;
     color: white;
-    border-radius: 8px;
+    text-align: center;
     text-decoration: none;
+    border-radius: 10px;
     font-weight: 600;
-    transition: background var(--transition);
+    transition: all 0.3s ease;
 }
 
 .btn-view-cart:hover {
-    background: var(--primary-blue-hover);
+    background: #005a8c;
     color: white;
 }
 
-/* ============================================
-   HOME PAGE
-   ============================================ */
-.home-container {
-    text-align: center;
-    padding: 20px 0;
+/* ========================================
+   ফুটার
+   ======================================== */
+
+.app-footer {
+    background: #172337;
+    color: white;
+    padding: 30px 24px;
+    margin-top: auto;
 }
 
-.hero-section {
-    max-width: 900px;
+.footer-content {
+    max-width: 1200px;
     margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
 }
 
-.home-title {
-    font-size: 48px;
-    color: var(--dark-text);
-    margin-bottom: 20px;
-    font-weight: 700;
+.footer-content p {
+    margin: 0;
+    font-size: 14px;
+    opacity: 0.8;
 }
 
-.home-subtitle {
-    font-size: 20px;
-    color: var(--light-text);
-    max-width: 600px;
-    margin: 0 auto 40px;
-    line-height: 1.6;
+.footer-links {
+    display: flex;
+    gap: 16px;
 }
 
-.home-features {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 30px;
-    margin: 40px 0;
-}
-
-.feature-card {
-    padding: 30px 20px;
-    background: #f8f9fa;
-    border-radius: var(--radius-lg);
-    transition: transform var(--transition), box-shadow var(--transition);
-}
-
-.feature-card:hover {
-    transform: translateY(-5px);
-    box-shadow: var(--shadow-md);
-}
-
-.feature-card i {
-    font-size: 40px;
-    color: var(--primary-blue);
-    margin-bottom: 15px;
-}
-
-.feature-card h3 {
-    color: var(--dark-text);
-    margin-bottom: 10px;
-}
-
-.feature-card p {
-    color: var(--light-text);
-}
-
-.btn-primary {
-    display: inline-block;
-    padding: 15px 40px;
-    font-size: 18px;
-    background-color: var(--success-green);
+.footer-links a {
     color: white;
-    border: none;
-    border-radius: var(--radius-lg);
-    cursor: pointer;
-    font-weight: 500;
-    font-family: 'Inter', Arial, sans-serif;
-    text-decoration: none;
-    transition: background-color var(--transition), transform var(--transition);
+    opacity: 0.7;
+    font-size: 20px;
+    transition: all 0.3s ease;
 }
 
-.btn-primary i {
-    margin-right: 8px;
+.footer-links a:hover {
+    opacity: 1;
+    color: #90e0ef;
 }
 
-.btn-primary:hover {
-    background-color: #218838;
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-md);
+/* ========================================
+   মেইন কন্টেন্ট
+   ======================================== */
+
+.app-main {
+    flex: 1;
+    max-width: 2000px;
+    margin: 0 auto;
+    padding: 24px;
+    width: 100%;
 }
 
-/* ============================================
-   PAGE CONTAINER
-   ============================================ */
-.page-container {
-    text-align: center;
-    padding: 40px 20px;
-}
+/* ========================================
+   রেস্পন্সিভ ডিজাইন
+   ======================================== */
 
-.page-container h2 {
-    font-size: 36px;
-    color: var(--dark-text);
-    margin-bottom: 16px;
-}
-
-.page-container h2 i {
-    margin-right: 12px;
-    color: var(--primary-blue);
-}
-
-.page-container > p {
-    font-size: 18px;
-    color: var(--light-text);
-    max-width: 600px;
-    margin: 0 auto 40px;
-    line-height: 1.6;
-}
-
-/* ============================================
-   RESPONSIVE
-   ============================================ */
-
-/* ===== Tablet ===== */
-@media (max-width: 1024px) {
-    .app-header {
-        padding: 12px 30px;
-    }
-    
-    .nav-links {
-        gap: 16px;
-    }
-    
-    .app-main {
-        padding: 30px 20px;
-    }
-}
-
-/* ===== Mobile ===== */
+/* ✅ ট্যাবলেট ও মোবাইল */
 @media (max-width: 768px) {
-    /* header may wrap on smaller screens; increase the header-height variable */
-    :root {
-        --header-height: 88px;
-    }
-    .app-header {
-        padding: 12px 20px;
-        flex-wrap: wrap;
-        gap: 12px;
-    }
-    
-    .header-left {
-        gap: 16px;
-        flex-wrap: wrap;
-        width: 100%;
-    }
-    
+    /* নেভ লিংক লুকান */
     .nav-links {
-        gap: 8px;
-        flex-wrap: wrap;
+        display: none;
     }
     
-    .nav-btn {
-        font-size: 14px;
-        padding: 6px 10px;
+    /* হ্যামবার্গার দেখান */
+    .hamburger-btn {
+        display: block;
     }
     
-    .app-main {
-        padding: 30px 20px;
+    /* ডেস্কটপ ড্রপডাউন মোবাইলে ফুল স্ক্রিন */
+    .dropdown-menu {
+        position: fixed;
+        top: 70px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        transform: none;
+        min-width: 100%;
+        max-width: 100%;
+        max-height: 100vh;
+        border-radius: 0;
+        padding: 16px 16px;
+        overflow-y: auto;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.3s ease;
     }
     
-    .home-title {
-        font-size: 32px;
+    .nav-dropdown:hover .dropdown-menu {
+        opacity: 1;
+        visibility: visible;
+        transform: none;
     }
     
-    .home-subtitle {
-        font-size: 17px;
+    /* ড্রপডাউন আইটেম সাইজ */
+    .dropdown-product-item {
+        padding: 10px 12px;
+    }
+    
+    .dropdown-product-item img {
+        width: 44px;
+        height: 44px;
+    }
+    
+    .dropdown-product-item .product-name {
+        font-size: 13px;
+    }
+    
+    .dropdown-product-item .product-desc {
+        font-size: 11px;
+    }
+    
+    .dropdown-product-item .product-price {
+        font-size: 13px;
+    }
+    
+    /* সাইন ইন বাটন */
+    .btn-signin span {
+        display: none;
+    }
+    
+    .app-header {
+        padding: 10px 16px;
+    }
+    
+    /* মোবাইল ড্রপডাউন মেনু সাইজ */
+    .mobile-dropdown-menu.open {
+        max-height: 400px;
+    }
+}
+
+/* ✅ খুব ছোট মোবাইল */
+@media (max-width: 480px) {
+    .dropdown-product-item {
+        padding: 8px 10px;
+        gap: 10px;
+    }
+    
+    .dropdown-product-item img {
+        width: 38px;
+        height: 38px;
+    }
+    
+    .dropdown-product-item .product-name {
+        font-size: 12px;
+    }
+    
+    .dropdown-product-item .product-price {
+        font-size: 12px;
+    }
+    
+    .logo-img {
+        height: 32px;
+    }
+    
+    .btn-signin {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+    
+    .header-cart-icon {
+        font-size: 16px;
+        padding: 6px;
+    }
+    
+    .hamburger-btn {
+        font-size: 20px;
+        padding: 4px 8px;
     }
     
     .cart-panel {
         width: 100%;
+        max-width: 100vw;
         right: -100%;
     }
     
-    .cart-panel.open {
-        right: 0;
-    }
-    
-    .footer-content {
-        flex-direction: column;
-        text-align: center;
-    }
-    
-    .app-footer {
-        padding: 20px;
+    .mobile-menu {
+        width: 280px;
+        right: -300px;
     }
 }
 
-/* ===== Small Mobile ===== */
-@media (max-width: 480px) {
-    /* small mobile - header often stacks; increase offset further */
-    :root {
-        --header-height: 110px;
-    }
-    .app-header {
-        flex-direction: column;
-        align-items: stretch;
-        padding: 12px 16px;
+/* ✅ ডেস্কটপ (768px এর বেশি) */
+@media (min-width: 769px) {
+    /* মোবাইল ড্রপডাউন লুকান */
+    .mobile-nav-dropdown .mobile-dropdown-menu {
+        max-height: none !important;
+        overflow: visible !important;
     }
     
-    .header-left {
-        flex-direction: column;
-        gap: 10px;
-        align-items: center;
+    .mobile-dropdown-toggle {
+        cursor: default;
     }
     
-    .logo-text {
-        font-size: 18px;
-    }
-    
-    .nav-links {
-        justify-content: center;
-        width: 100%;
-    }
-    
-    .nav-btn {
-        font-size: 13px;
-        padding: 4px 8px;
-    }
-    
-    .header-right {
-        justify-content: center;
-        width: 100%;
-    }
-    
-    .btn-signin {
-        width: 100%;
-        text-align: center;
-        padding: 10px;
-        justify-content: center;
-    }
-    
-    .home-title {
-        font-size: 28px;
-    }
-    
-    .btn-primary {
-        width: 100%;
-        text-align: center;
-    }
-    
-    .app-main {
-        padding: 20px 12px;
-    }
-    
-    .app-footer {
-        padding: 16px;
-    }
-}
-
-/* ============================================
-   FLOATING CART BUTTON
-   ============================================ */
-.floating-cart {
-    position: fixed;
-    bottom: 30px;
-    right: 30px;
-    width: 60px;
-    height: 60px;
-    background: linear-gradient(135deg, #007bff, #0056b3);
-    color: white;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 24px;
-    box-shadow: 0 4px 20px rgba(0, 123, 255, 0.4);
-    cursor: pointer;
-    transition: all 0.3s ease;
-    z-index: 999;
-    animation: floatBounce 2s ease-in-out infinite;
-    border: none;
-}
-
-.floating-cart:hover {
-    transform: scale(1.1);
-    box-shadow: 0 6px 30px rgba(0, 123, 255, 0.6);
-}
-
-.floating-cart:active {
-    transform: scale(0.95);
-}
-
-@keyframes floatBounce {
-    0%, 100% {
-        transform: translateY(0);
-    }
-    50% {
-        transform: translateY(-8px);
-    }
-}
-
-.floating-cart-badge {
-    position: absolute;
-    top: -5px;
-    right: -5px;
-    background: #e74c3c;
-    color: white;
-    font-size: 12px;
-    font-weight: 700;
-    min-width: 22px;
-    height: 22px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 2px 10px rgba(231, 76, 60, 0.4);
-    display: none;
-}
-
-.floating-cart-badge.show {
-    display: flex;
-}
-
-/* ============================================
-   CART OVERLAY
-   ============================================ */
-.cart-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 999;
-    opacity: 0;
-    visibility: hidden;
-    transition: all 0.3s ease;
-}
-
-.cart-overlay.active {
-    opacity: 1;
-    visibility: visible;
-}
-
-/* Prevent header overlap: offset typical sidebars/fixed navs if they use top positioning */
-.sidebar-nav,
-.sidebar,
-.side-nav {
-    top: var(--header-height);
-}
-
-/* ============================================
-   UTILITY CLASSES
-   ============================================ */
-.text-center {
-    text-align: center;
-}
-.text-muted {
-    color: var(--light-text);
-}
-.d-none {
-    display: none;
-}
-.w-100 {
-    width: 100%;
-}
-.overflow-hidden {
-    overflow: hidden;
-}
-.overflow-x-hidden {
-    overflow-x: hidden;
-}
-
-/* ============================================
-   PRINT STYLES
-   ============================================ */
-@media print {
-    .app-header,
-    .app-footer,
-    .cart-panel,
-    .cart-panel-overlay,
-    .floating-cart {
-        display: none !important;
-    }
-    
-    .app-main {
-        padding: 20px !important;
-        max-width: 100% !important;
+    .mobile-dropdown-toggle .mobile-dropdown-arrow {
+        display: none;
     }
 }

@@ -198,8 +198,6 @@ from django.core.validators import RegexValidator
 
 class Product(models.Model):
 
-
-
     CATEGORY_CHOICES = [
         ('Filters', 'Filters'),
         ('Sensors', 'Sensors'),
@@ -212,6 +210,15 @@ class Product(models.Model):
     ]
     
     name = models.CharField(max_length=200)
+    
+    # ✅ শর্ট ডেসক্রিপশন - এটা যোগ করুন
+    short_description = models.CharField(
+        max_length=300, 
+        blank=True, 
+        null=True,
+        help_text="Brief description shown in product cards and dropdown menus (max 300 chars)"
+    )
+    
     description = models.TextField(blank=True, null=True)
     price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, default='Filters')
@@ -264,7 +271,7 @@ class Product(models.Model):
         return self.price * self.stock_quantity
     
     # ============================================
-    # 🔥 INVENTORY RELATED METHODS - এগুলো যোগ করুন
+    # 🔥 INVENTORY RELATED METHODS
     # ============================================
     
     def get_inventory_total(self):
@@ -296,8 +303,16 @@ class Product(models.Model):
             return self.inventory_movements.all().order_by('-created_at')
         except:
             return []
-
-
+    
+    # ✅ শর্ট ডেসক্রিপশন পাওয়ার জন্য হেল্পার মেথড
+    def get_short_description(self, max_length=150):
+        """Return short description or truncated description"""
+        if self.short_description:
+            return self.short_description
+        if self.description:
+            # যদি শর্ট ডেসক্রিপশন না থাকে, তাহলে ডেসক্রিপশনের প্রথম 150 অক্ষর
+            return self.description[:max_length] + ('...' if len(self.description) > max_length else '')
+        return "No description available"
 
 # models.py
 class Inventory(models.Model):
@@ -553,7 +568,7 @@ class Inventory(models.Model):
         ('restock', 'Restock'),
     ]
     
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='inventory_movements')
+    product = models.ForeignKey(Product, on_delete=models.SET_NULL, null=True, blank=True,related_name='inventory_movements')
     quantity = models.IntegerField()
     previous_stock = models.IntegerField(default=0)
     new_stock = models.IntegerField(default=0)
