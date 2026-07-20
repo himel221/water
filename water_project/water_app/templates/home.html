@@ -121,8 +121,6 @@
                             <i class="fas fa-shopping-cart"></i> Shop Now
                         </a>
 
-                        
-
                         <button class="btn-buy-once">Buy Once for $119 + $9 shipping</button>
                     </div>
 
@@ -272,13 +270,9 @@
   </div>
 </section>
 
-
 <!-- ========================================
      ফিচার সেকশন
      ======================================== -->
-<!-- =============================================
-   নিউট্রিশন সেকশন - আপনার লক্ষ্যের জন্য
-   ============================================= -->
 <section class="nutrition-section">
     <div class="container">
         <div class="row align-items-center">
@@ -295,13 +289,13 @@
                             <span class="list-icon">
                                 <i class="fas fa-check-circle"></i>
                             </span>
-                            <b>Optimum Hydration</b>with Electrolytes
+                            <b>Optimum Hydration</b> with Electrolytes
                         </li>
                         <li>
                             <span class="list-icon">
                                 <i class="fas fa-check-circle"></i>
                             </span>
-                            <b>Immunity</b>With Zinc & Selenium
+                            <b>Immunity</b> With Zinc & Selenium
                         </li>
                         <li>
                             <span class="list-icon">
@@ -309,10 +303,11 @@
                             </span>
                             <b>Healthy Blood Pressure</b> with Magnesium
                         </li>
+                        <li>
                             <span class="list-icon">
                                 <i class="fas fa-check-circle"></i>
                             </span>
-                            <b>Diabetes Prevention & Management</b>&nbsp&nbsp&nbsp with Proprietary Ion-Blend
+                            <b>Diabetes Prevention & Management</b> with Proprietary Ion-Blend
                         </li>
                     </ul>
                     
@@ -326,7 +321,6 @@
             <div class="col-lg-5">
                 <div class="nutrition-image-wrapper">
                     <img src="static/images/swecommerce.png" alt="AG1 Products" class="nutrition-image">
-
                 </div>
             </div>
         </div>
@@ -335,12 +329,6 @@
 
 <!-- =============================================
    কোয়ালিটি স্ট্যান্ডার্ডস সেকশন
-   ============================================= -->
-<!-- =============================================
-   কোয়ালিটি স্ট্যান্ডার্ডস সেকশন
-   ============================================= -->
-<!-- =============================================
-   কোয়ালিটি স্ট্যান্ডার্ডস সেকশন - ইমেজ বামে, কন্টেন্ট ডানে
    ============================================= -->
 <section class="quality-section">
     <div class="container">
@@ -377,6 +365,68 @@
         </div>
     </div>
 </section>
+
+<!-- =============================================
+   প্রসেস সেকশন - ক্লিনিকাল রিসার্চ লাইফসাইকেল
+   ============================================= -->
+<section class="process-section">
+    <div class="container">
+        <!-- Section Header -->
+        <div class="process-header">
+            <span class="process-tag">PROCESS</span>
+            <h2 class="process-title">The clinical research <br>lifecycle</h2>
+        </div>
+
+        <!-- Process Steps -->
+        <div class="process-steps">
+            <!-- Step 01 -->
+            <div class="process-step">
+                <div class="step-number">01</div>
+                <div class="step-content">
+                    <h4 class="step-title">PRE-CLINICAL TRIALS</h4>
+                    <p class="step-description">How the science begins</p>
+                </div>
+            </div>
+
+            <!-- Step 02 -->
+            <div class="process-step">
+                <div class="step-number">02</div>
+                <div class="step-content">
+                    <h4 class="step-title">IRB REVIEW &amp; CRO PARTNERSHIP</h4>
+                    <p class="step-description">Independent oversight at every step</p>
+                </div>
+            </div>
+
+            <!-- Step 03 -->
+            <div class="process-step">
+                <div class="step-number">03</div>
+                <div class="step-content">
+                    <h4 class="step-title">PARTICIPANT RECRUITMENT &amp; BLINDING</h4>
+                    <p class="step-description">Triple-blind. No bias. No exceptions.</p>
+                </div>
+            </div>
+
+            <!-- Step 04 -->
+            <div class="process-step">
+                <div class="step-number">04</div>
+                <div class="step-content">
+                    <h4 class="step-title">POWER CALCULATION &amp; STUDY DESIGN</h4>
+                    <p class="step-description">Designed to detect real, meaningful results</p>
+                </div>
+            </div>
+
+            <!-- Step 05 -->
+            <div class="process-step">
+                <div class="step-number">05</div>
+                <div class="step-content">
+                    <h4 class="step-title">STUDY EXECUTION &amp; PUBLICATION</h4>
+                    <p class="step-description">From lab results to peer-reviewed science</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
 <!-- ===== CSS ===== -->
 <link rel="stylesheet" href="{% static 'css/home.css' %}">
 
@@ -467,6 +517,26 @@ document.addEventListener('DOMContentLoaded', function() {
 
         chartObserver.observe(chartSection);
     }
+
+    // =============================================
+    // প্রসেস সেকশন অ্যানিমেশন
+    // =============================================
+    const processSteps = document.querySelectorAll('.process-step');
+    const processObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry, index) => {
+            if (entry.isIntersecting) {
+                setTimeout(() => {
+                    entry.target.classList.add('animate');
+                }, index * 150);
+                processObserver.unobserve(entry.target);
+            }
+        });
+    }, {
+        threshold: 0.15,
+        rootMargin: '0px 0px -50px 0px'
+    });
+
+    processSteps.forEach(step => processObserver.observe(step));
 });
 </script>
 
