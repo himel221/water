@@ -55,14 +55,14 @@
   max-width: 1280px;
   width: 100%;
   margin: 0 auto;
-  background: #ffffff;
+  background: rgb(14, 27, 44);
   border-radius: 2.5rem;
   box-shadow: 0 20px 40px -12px rgba(0, 20, 30, 0.15);
 }
 
 .hero-text-section {
     padding: 40px 0;
-    background: #ffffff;
+    background: rgb(14, 27, 44);
     position: relative;
 }
 
@@ -130,8 +130,865 @@
 /* =============================================
    প্রোডাক্ট সেকশন - নতুন CSS
    ============================================= */
+/* =============================================
+   প্রোডাক্ট সেকশন - ২টি প্রোডাক্ট পাশাপাশি
+   ============================================= */
+/* =============================================
+   প্রোডাক্ট সেকশন - ২টি প্রোডাক্ট পাশাপাশি
+   ============================================= */
+.product-section {
+    padding: 3rem 0;
+    background: rgb(14, 27, 44);
+    position: relative;
+    overflow: hidden;
+}
 
+.product-section::before {
+    content: '';
+    position: absolute;
+    top: -30%;
+    right: -10%;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(79, 195, 247, 0.03), transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.container3 {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+}
+
+/* ===== Row Alignment ===== */
+.product-section .row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    justify-content: center;
+    gap: 0;
+    margin: 0 -0.75rem;
+}
+
+.product-section .col-lg-6 {
+    flex: 0 0 50%;
+    max-width: 50%;
+    padding: 0 0.75rem;
+}
+
+.product-section .col-12 {
+    flex: 0 0 100%;
+    max-width: 100%;
+    padding: 0 0.75rem;
+}
+
+/* ===== Product Item ===== */
+.product-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.3rem;
+    height: 100%;
+}
+
+/* ===== Product Image Card ===== */
+.product-image-card {
+    position: relative;
+    width: 100%;
+    max-width: 420px;
+    border-radius: 1.5rem;
+    overflow: hidden;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    transition: all 0.5s ease;
+    background: #1a2d42;
+    margin: 0 auto;
+}
+
+.product-image-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 30px 80px rgba(79, 195, 247, 0.15);
+}
+
+.product-img {
+    width: 100%;
+    height: auto;
+    display: block;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    transition: transform 0.6s ease;
+}
+
+.product-image-card:hover .product-img {
+    transform: scale(1.03);
+}
+
+/* ===== Product Badges ===== */
+.product-image-badge {
+    position: absolute;
+    top: 1rem;
+    left: 1rem;
+    background: linear-gradient(135deg, #2b7a8a, #1a5c6e);
+    color: #ffffff;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.3rem 1rem;
+    border-radius: 50px;
+    box-shadow: 0 4px 15px rgba(26, 92, 110, 0.4);
+    z-index: 2;
+}
+
+.product-image-badge.pro-badge {
+    background: linear-gradient(135deg, #2b7a8a, #1a5c6e);
+    color: #1a1a2e;
+    box-shadow: linear-gradient(135deg, #2b7a8a, #1a5c6e);
+}
+
+/* ===== Rating Badge ===== */
+.product-image-rating {
+    position: absolute;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(10, 30, 43, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 50px;
+    padding: 0.3rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: #ffffff;
+    font-size: 0.7rem;
+    white-space: nowrap;
+    z-index: 2;
+}
+
+.product-image-rating i {
+    color: #ffffff;
+}
+
+/* ===== Product Details Wrapper ===== */
+.product-details-wrapper {
+    width: 100%;
+    max-width: 420px;
+    padding: 0.8rem 0.3rem 0.2rem;
+    text-align: center;
+}
+
+.product-name {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 0.15rem;
+    letter-spacing: -0.02em;
+}
+
+.product-name.pro-name {
+    color: #ffffff;
+}
+
+/* ===== Product Size ===== */
+.product-size {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #4fc3f7;
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.02em;
+    background: rgba(79, 195, 247, 0.06);
+    display: inline-block;
+    padding: 0.1rem 1.5rem;
+    border-radius: 50px;
+    border: 1px solid rgba(79, 195, 247, 0.1);
+}
+
+.product-size.pro-size {
+    color: #ffffff;
+    background:rgba(79, 195, 247, 0.06);
+    border-color: rgba(249, 202, 36, 0.1);
+}
+
+/* ===== Product Price ===== */
+.product-price {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.8rem;
+    margin-bottom: 0.5rem;
+    padding: 0.2rem 0;
+}
+
+.price-current {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: #ffffff;
+}
+
+.price-original {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.3);
+    text-decoration: line-through;
+}
+
+.price-save {
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #4fc3f7;
+    background: rgba(79, 195, 247, 0.1);
+    padding: 0.1rem 0.6rem;
+    border-radius: 50px;
+}
+
+/* ===== Shop Now Button ===== */
+.product-shop-wrapper {
+    margin-top: 0.2rem;
+    text-align: center;
+    width: 100%;
+}
+
+.product-shop-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    color: #4fc3f7;
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-decoration: none;
+    padding: 0.5rem 2rem;
+    border-radius: 50px;
+    transition: all 0.3s ease;
+    background: rgba(79, 195, 247, 0.06);
+    border: 1px solid rgba(79, 195, 247, 0.15);
+}
+
+.product-shop-btn:hover {
+    background: rgba(79, 195, 247, 0.12);
+    color: #ffffff;
+    text-decoration: none;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(79, 195, 247, 0.15);
+    border-color: rgba(79, 195, 247, 0.3);
+}
+
+.product-shop-btn i {
+    transition: transform 0.3s ease;
+}
+
+.product-shop-btn:hover i {
+    transform: translateX(6px);
+}
+
+/* Pro Shop Button */
+.product-shop-btn.pro-shop-btn {
+    color: #ffffff;
+    background:  rgba(79, 195, 247, 0.06);
+    border:   rgba(79, 195, 247, 0.06);
+}
+
+.product-shop-btn.pro-shop-btn:hover {
+    background: rgba(249, 202, 36, 0.12);
+    color: #ffffff;
+    box-shadow: rgba(79, 195, 247, 0.06);
+     background: rgba(79, 195, 247, 0.06);
+}
+
+/* ===== Divider Line ===== */
+.product-divider-line {
+    position: relative;
+    height: 1px;
+    width: 70%;
+    max-width: 500px;
+    margin: 1.5rem auto 0 auto;
+    background: linear-gradient(to right, 
+        transparent, 
+        rgba(79, 195, 247, 0.15) 20%, 
+        rgba(79, 195, 247, 0.3) 50%, 
+        rgba(79, 195, 247, 0.15) 80%, 
+        transparent
+    );
+}
+
+.product-divider-line::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px;
+    height: 8px;
+    background: rgba(79, 195, 247, 0.2);
+    border-radius: 50%;
+    border: 1px solid rgba(79, 195, 247, 0.1);
+    box-shadow: 0 0 30px rgba(79, 195, 247, 0.05);
+}
+
+/* =============================================
+   অ্যানিমেশন
+   ============================================= */
+.animate-on-scroll {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.animate-on-scroll.animated {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.product-image-left.animate-on-scroll {
+    transform: translateX(-40px);
+}
+
+.product-image-left.animate-on-scroll.animated {
+    transform: translateX(0);
+}
+
+.product-image-right.animate-on-scroll {
+    transform: translateX(40px);
+}
+
+.product-image-right.animate-on-scroll.animated {
+    transform: translateX(0);
+}
+
+/* =============================================
+   রেসপনসিভ
+   ============================================= */
+@media (max-width: 992px) {
+    .product-section {
+        padding: 2.5rem 0;
+    }
+
+    .product-section .col-lg-6 {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+
+    .product-image-card {
+        max-width: 320px;
+    }
+
+    .product-details-wrapper {
+        max-width: 320px;
+        padding: 0.6rem 0.3rem 0.2rem;
+    }
+
+    .product-name {
+        font-size: 1.1rem;
+    }
+
+    .product-size {
+        font-size: 1.3rem;
+        padding: 0.1rem 1.2rem;
+    }
+
+    .price-current {
+        font-size: 1.2rem;
+    }
+
+    .product-shop-btn {
+        font-size: 0.85rem;
+        padding: 0.4rem 1.8rem;
+    }
+
+    .product-divider-line {
+        width: 60%;
+        margin: 1.2rem auto 0 auto;
+    }
+}
+
+@media (max-width: 768px) {
+    .product-section {
+        padding: 2rem 0;
+    }
+
+    .product-section .col-lg-6 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+
+    .product-image-card {
+        max-width: 300px;
+    }
+
+    .product-details-wrapper {
+        max-width: 300px;
+        padding: 0.5rem 0.25rem 0.15rem;
+    }
+
+    .product-image-right {
+        margin-top: 0.3rem;
+    }
+
+    .product-image-badge {
+        font-size: 0.5rem;
+        padding: 0.2rem 0.8rem;
+        top: 0.8rem;
+        left: 0.8rem;
+    }
+
+    .product-image-rating {
+        font-size: 0.6rem;
+        padding: 0.2rem 0.8rem;
+        bottom: 0.8rem;
+        gap: 0.3rem;
+    }
+
+    .product-name {
+        font-size: 1rem;
+    }
+
+    .product-size {
+        font-size: 1.2rem;
+        padding: 0.1rem 1rem;
+        margin-bottom: 0.3rem;
+    }
+
+    .price-current {
+        font-size: 1.1rem;
+    }
+
+    .price-original {
+        font-size: 0.75rem;
+    }
+
+    .price-save {
+        font-size: 0.6rem;
+        padding: 0.1rem 0.5rem;
+    }
+
+    .product-divider-line {
+        width: 50%;
+        margin: 1rem auto 0 auto;
+    }
+
+    .product-divider-line::after {
+        width: 6px;
+        height: 6px;
+    }
+
+    .product-shop-btn {
+        font-size: 0.8rem;
+        padding: 0.4rem 1.5rem;
+        gap: 0.4rem;
+    }
+
+    .product-image-left.animate-on-scroll,
+    .product-image-right.animate-on-scroll {
+        transform: translateY(30px);
+    }
+
+    .product-image-left.animate-on-scroll.animated,
+    .product-image-right.animate-on-scroll.animated {
+        transform: translateY(0);
+    }
+}
+
+@media (max-width: 576px) {
+    .product-section {
+        padding: 1.5rem 0;
+    }
+
+    .product-image-card {
+        max-width: 220px;
+        border-radius: 1.2rem;
+    }
+
+    .product-details-wrapper {
+        max-width: 220px;
+        padding: 0.4rem 0.15rem 0.1rem;
+    }
+
+    .product-image-badge {
+        font-size: 0.45rem;
+        padding: 0.15rem 0.6rem;
+        top: 0.6rem;
+        left: 0.6rem;
+    }
+
+    .product-image-rating {
+        font-size: 0.5rem;
+        padding: 0.2rem 0.6rem;
+        bottom: 0.6rem;
+        gap: 0.2rem;
+    }
+
+    .product-name {
+        font-size: 0.85rem;
+        margin-bottom: 0.1rem;
+    }
+
+    .product-size {
+        font-size: 1rem;
+        padding: 0.05rem 0.8rem;
+        margin-bottom: 0.2rem;
+    }
+
+    .product-price {
+        gap: 0.5rem;
+        margin-bottom: 0.3rem;
+        padding: 0.1rem 0;
+    }
+
+    .price-current {
+        font-size: 0.95rem;
+    }
+
+    .price-original {
+        font-size: 0.65rem;
+    }
+
+    .price-save {
+        font-size: 0.5rem;
+        padding: 0.05rem 0.4rem;
+    }
+
+    .product-divider-line {
+        width: 40%;
+        margin: 0.8rem auto 0 auto;
+    }
+
+    .product-divider-line::after {
+        width: 5px;
+        height: 5px;
+    }
+
+    .product-shop-btn {
+        font-size: 0.7rem;
+        padding: 0.3rem 1.2rem;
+        gap: 0.3rem;
+    }
+
+    .product-shop-wrapper {
+        margin-top: 0.1rem;
+    }
+}
 /* ===== কন্টেইনার ===== */
+
+
+/* =============================================
+   ইনগ্রিডিয়েন্টস সেকশন - 3 items per row
+   ============================================= */
+.container4 {
+  max-width: 1400px;
+  width: 100%;
+  margin: 0 auto;
+  background:rgb(14, 27, 44);
+  
+  padding: 2.5rem 2.8rem;
+  box-shadow: 0 20px 40px -12px rgba(0, 20, 30, 0.15);
+}
+
+
+.ingredients-section {
+    padding: 4rem 0;
+    background:rgb(14, 27, 44);
+    position: relative;
+    overflow: hidden;
+}
+
+.ingredients-section::before {
+    content: '';
+    position: absolute;
+    top: -30%;
+    left: -10%;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(79, 195, 247, 0.03), transparent 70%);
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.container2 {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+}
+
+/* ===== Section Header ===== */
+.ingredients-header {
+    text-align: center;
+    margin-bottom: 2.5rem;
+}
+
+.ingredients-tag {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #4fc3f7;
+    background: rgba(79, 195, 247, 0.08);
+    padding: 0.3rem 1.2rem;
+    border-radius: 50px;
+    margin-bottom: 0.8rem;
+    border: 1px solid rgba(79, 195, 247, 0.1);
+}
+
+.ingredients-title {
+    font-size: 2.8rem;
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin-bottom: 0.5rem;
+}
+
+.ingredients-subtitle {
+    font-size: 1.05rem;
+    color: rgba(255, 255, 255, 0.6);
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+
+/* ===== Ingredients Grid - 3 items per row ===== */
+.ingredients-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.5rem;
+    margin-top: 0.5rem;
+}
+
+.ingredient-item {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 1.2rem;
+    padding: 1.8rem 1.5rem;
+    text-align: center;
+    transition: all 0.4s ease;
+}
+
+.ingredient-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(79, 195, 247, 0.1);
+    transform: translateY(-5px);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+}
+
+.ingredient-icon {
+    width: 55px;
+    height: 55px;
+    margin: 0 auto 0.8rem;
+    background: rgba(79, 195, 247, 0.06);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.6rem;
+    color: #4fc3f7;
+    transition: all 0.4s ease;
+}
+
+.ingredient-item:hover .ingredient-icon {
+    background: rgba(79, 195, 247, 0.12);
+    transform: scale(1.05);
+}
+
+.ingredient-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #ffffff;
+    margin-bottom: 0.2rem;
+    letter-spacing: 0.02em;
+}
+
+.ingredient-desc {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: #4fc3f7;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.6rem;
+}
+
+.ingredient-text {
+    font-size: 0.78rem;
+    color: rgba(255, 255, 255, 0.5);
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* ===== View All Wrapper ===== */
+.view-all-wrapper {
+    text-align: center;
+    margin-top: 2.5rem;
+}
+
+/* ===== View All Button ===== */
+.btn-view-all-ingredients {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.8rem;
+    color: #4fc3f7;
+    font-weight: 600;
+    font-size: 1rem;
+    text-decoration: none;
+    padding: 0.8rem 2.5rem;
+    border-radius: 50px;
+    transition: all 0.3s ease;
+    background: rgba(79, 195, 247, 0.06);
+    border: 1px solid rgba(79, 195, 247, 0.15);
+}
+
+.btn-view-all-ingredients:hover {
+    background: rgba(79, 195, 247, 0.12);
+    color: #ffffff;
+    text-decoration: none;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 30px rgba(79, 195, 247, 0.15);
+    border-color: rgba(79, 195, 247, 0.3);
+}
+
+.btn-view-all-ingredients i {
+    transition: transform 0.3s ease;
+}
+
+.btn-view-all-ingredients:hover i {
+    transform: translateX(6px);
+}
+
+/* =============================================
+   রেসপনসিভ
+   ============================================= */
+@media (max-width: 992px) {
+    .ingredients-section {
+        padding: 3rem 0;
+    }
+
+    .ingredients-title {
+        font-size: 2.2rem;
+    }
+
+    .ingredients-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1.2rem;
+    }
+
+    .ingredient-item {
+        padding: 1.5rem 1rem;
+    }
+}
+
+@media (max-width: 768px) {
+    .ingredients-section {
+        padding: 2.5rem 0;
+    }
+
+    .ingredients-title {
+        font-size: 1.8rem;
+    }
+
+    .ingredients-title br {
+        display: none;
+    }
+
+    .ingredients-subtitle {
+        font-size: 0.95rem;
+    }
+
+    .ingredients-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.8rem;
+    }
+
+    .ingredient-item {
+        padding: 1.2rem 0.8rem;
+        border-radius: 1rem;
+    }
+
+    .ingredient-icon {
+        width: 45px;
+        height: 45px;
+        font-size: 1.2rem;
+        margin-bottom: 0.6rem;
+    }
+
+    .ingredient-title {
+        font-size: 0.8rem;
+    }
+
+    .ingredient-desc {
+        font-size: 0.6rem;
+        margin-bottom: 0.4rem;
+    }
+
+    .ingredient-text {
+        font-size: 0.65rem;
+    }
+
+    .btn-view-all-ingredients {
+        font-size: 0.9rem;
+        padding: 0.6rem 2rem;
+    }
+
+    .view-all-wrapper {
+        margin-top: 2rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .ingredients-section {
+        padding: 2rem 0;
+    }
+
+    .ingredients-header {
+        margin-bottom: 1.5rem;
+    }
+
+    .ingredients-title {
+        font-size: 1.5rem;
+    }
+
+    .ingredients-subtitle {
+        font-size: 0.85rem;
+    }
+
+    .ingredients-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 0.6rem;
+    }
+
+    .ingredient-item {
+        padding: 1rem 0.6rem;
+        border-radius: 0.8rem;
+    }
+
+    .ingredient-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+        margin-bottom: 0.4rem;
+    }
+
+    .ingredient-title {
+        font-size: 0.7rem;
+    }
+
+    .ingredient-desc {
+        font-size: 0.55rem;
+    }
+
+    .ingredient-text {
+        font-size: 0.6rem;
+        line-height: 1.4;
+    }
+
+    .view-all-wrapper {
+        margin-top: 1.5rem;
+    }
+
+    .btn-view-all-ingredients {
+        font-size: 0.8rem;
+        padding: 0.5rem 1.5rem;
+        gap: 0.5rem;
+    }
+}
+
+
 /* =============================================
    প্রোডাক্ট সেকশন - স্টিকি ইমেজ সহ
    ============================================= */
@@ -808,6 +1665,7 @@
 /* ===== SECTION STYLES ===== */
 .stats-section {
   width: 100%;
+  background-color: white;;
 }
 
 /* ===== CONTAINER ===== */
@@ -979,7 +1837,6 @@
 
 .ingredients-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
   gap: 1.2rem;
 }
 
@@ -1290,7 +2147,7 @@
    ============================================= */
 .nutrition-section {
     padding: 4rem 0;
-    background: #ffffff;
+    background: rgb(14, 27, 44);
     position: relative;
     overflow: hidden;
     border-top: 1px solid rgba(0, 0, 0, 0.05);
@@ -1350,7 +2207,7 @@
 .nutrition-title {
     font-size: 2.8rem;
     font-weight: 700;
-    color: #1a202c;
+    color: #ffffff;
     margin-bottom: 1.2rem;
     line-height: 1.15;
     letter-spacing: -0.02em;
@@ -1358,7 +2215,7 @@
 
 .nutrition-description {
     font-size: 1.05rem;
-    color: #1a202c;
+    color: #ffffff;
     margin-bottom: 1.8rem;
     line-height: 1.6;
 }
@@ -1376,7 +2233,7 @@
     gap: 1rem;
     padding: 0.6rem 0;
     font-size: 0.95rem;
-    color: #1a202c;
+    color: #ffffff;
     line-height: 1.5;
     transition: all 0.3s ease;
     border-bottom: 1px solid rgba(0, 0, 0, 0.05);
@@ -1387,7 +2244,7 @@
 }
 
 .nutrition-list li:hover {
-    color: #2b7a8a;
+    color: #f8f8f8;
     padding-left: 4px;
 }
 
@@ -1403,7 +2260,7 @@
 
 .list-icon i {
     font-size: 1rem;
-    color: #2b7a8a;
+    color: #ffffff;
 }
 
 /* ===== Get Started Button ===== */
@@ -1696,7 +2553,7 @@
 
 .quality-section {
     padding: 5rem 0;
-    background: rgb(245, 243, 239);
+    background: rgb(14, 27, 44);
     position: relative;
     overflow: hidden;
     border-top: 1px solid rgba(255, 255, 255, 0.05);
@@ -1762,18 +2619,18 @@
     font-weight: 700;
     letter-spacing: 0.15em;
     text-transform: uppercase;
-    color: #050b0e;
-    background: rgba(79, 195, 247, 0.08);
+    color:rgb(14, 27, 44);
+    background: white;
     padding: 0.3rem 1.2rem;
     border-radius: 50px;
     margin-bottom: 1rem;
-    border: 1px solid rgba(79, 195, 247, 0.1);
+    border: white;
 }
 
 .quality-title {
     font-size: 2.8rem;
     font-weight: 700;
-    color: rgb(26, 32, 44);
+    color: rgb(255, 255, 255);
     margin-bottom: 1.5rem;
     line-height: 1.15;
     letter-spacing: -0.02em;
@@ -1788,16 +2645,16 @@
     display: inline-flex;
     align-items: center;
     gap: 1rem;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: white;
+    border: white;
     border-radius: 1rem;
     padding: 0.8rem 1.5rem 0.8rem 1rem;
     transition: all 0.3s ease;
 }
 
 .quality-badge:hover {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(79, 195, 247, 0.2);
+    background: white;
+    border-color: white;
     transform: translateY(-2px);
 }
 
@@ -1834,7 +2691,7 @@
 .badge-text p {
     font-size: 0.55rem;
     font-weight: 700;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgb(255, 251, 251);
     letter-spacing: 0.15em;
     text-transform: uppercase;
     margin: 0;
@@ -1844,7 +2701,7 @@
 /* ===== Description ===== */
 .quality-description {
     font-size: 1rem;
-    color: rgb(26, 32, 44);
+    color: white;
     line-height: 1.8;
     margin-bottom: 2rem;
     max-width: 95%;
@@ -2134,7 +2991,7 @@
    ============================================= */
 .process-section {
     padding: 5rem 0;
-    background: #f2f3f3;
+    background: rgb(14, 27, 44);
     position: relative;
 }
 
@@ -2167,7 +3024,7 @@
 .process-title {
     font-size: 3rem;
     font-weight: 700;
-    color: #000000;
+    color: #ffffff;
     line-height: 1.15;
     letter-spacing: -0.02em;
 }
@@ -2185,6 +3042,7 @@
     margin: 0 auto;
     position: relative;
     padding-left: 20px;
+    color:white;
 }
 
 /* Vertical line connecting steps */
@@ -2253,14 +3111,14 @@
 .step-title {
     font-size: 1.2rem;
     font-weight: 700;
-    color: #000000;
+    color: white;
     margin-bottom: 0.3rem;
     letter-spacing: 0.02em;
 }
 
 .step-description {
     font-size: 0.95rem;
-    color: rgba(1, 0, 0, 0.5);
+    color: white;
     line-height: 1.5;
     margin: 0;
 }
